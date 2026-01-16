@@ -201,12 +201,21 @@ export default function DashboardLayout({ children, userProfile }) {
 
               {/* Dropdown Menu */}
               {userMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50">
-                  <div className="px-4 py-2 border-b border-slate-100">
-                    <p className="text-sm font-medium text-slate-900 truncate">
-                      {isCompany ? (userProfile?.company_name || userProfile?.full_name || 'User') : (userProfile?.full_name || 'User')}
-                    </p>
-                    <p className="text-xs text-slate-500 truncate">{userProfile?.email}</p>
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-slate-200 py-1 z-50">
+                  <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
+                    <div className="flex items-center space-x-2 mb-1">
+                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-green-700 font-semibold text-xs">
+                          {userProfile?.full_name?.charAt(0) || userProfile?.company_name?.charAt(0) || userProfile?.email?.charAt(0) || 'U'}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-900 truncate">
+                          {isCompany ? (userProfile?.company_name || userProfile?.full_name || 'User') : (userProfile?.full_name || 'User')}
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">{userProfile?.email}</p>
+                      </div>
+                    </div>
                   </div>
                   <Link
                     to="/dashboard/profile"

@@ -12,11 +12,24 @@ export default function History({ userProfile }) {
   const [deleting, setDeleting] = useState(null)
 
   useEffect(() => {
-    fetchCalculations()
+    if (userProfile?.id) {
+      fetchCalculations()
+    } else {
+      // If no userProfile yet, wait a bit and try again
+      const timer = setTimeout(() => {
+        if (!userProfile?.id) {
+          setLoading(false)
+        }
+      }, 2000)
+      return () => clearTimeout(timer)
+    }
   }, [userProfile])
 
   const fetchCalculations = async () => {
-    if (!userProfile?.id) return
+    if (!userProfile?.id) {
+      setLoading(false)
+      return
+    }
 
     try {
       const { data, error } = await supabase

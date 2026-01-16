@@ -1,37 +1,110 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { calculatePAYE, formatCurrency } from '../../utils/taxCalculations'
 import { supabase } from '../../lib/supabase'
+import { savePersonalCalculationData, getPersonalCalculationData, saveReturnUrl } from '../../utils/storage'
 import toast from 'react-hot-toast'
 
 export default function PersonalTax({ userProfile }) {
   const navigate = useNavigate()
   const [monthlyGross, setMonthlyGross] = useState(userProfile?.monthly_salary?.toString() || '')
+  const [additionalIncome, setAdditionalIncome] = useState('')
   const [annualRent, setAnnualRent] = useState('')
   const [hasPension, setHasPension] = useState(true)
   const [hasNHF, setHasNHF] = useState(true)
   const [analysisName, setAnalysisName] = useState('')
   const [results, setResults] = useState(null)
   const [saving, setSaving] = useState(false)
+  const isMounted = useRef(true)
+
+  useEffect(() => {
+    isMounted.current = true
+    return () => {
+      isMounted.current = false
+    }
+  }, [])
+
+  // Restore calculation data after signup/login
+  useEffect(() => {
+    if (!isMounted.current) return
+    
+    if (userProfile?.id && results === null) {
+      const savedData = getPersonalCalculationData()
+      if (savedData) {
+        setMonthlyGross(savedData.monthlyGross || userProfile?.monthly_salary?.toString() || '')
+        setAdditionalIncome(savedData.additionalIncome || '')
+        setAnnualRent(savedData.annualRent || '')
+        setHasPension(savedData.hasPension !== undefined ? savedData.hasPension : true)
+        setHasNHF(savedData.hasNHF !== undefined ? savedData.hasNHF : true)
+        setAnalysisName(savedData.analysisName || '')
+        
+        // Recalculate if we have the inputs
+        if (savedData.monthlyGross) {
+          const monthlyValue = parseFloat(savedData.monthlyGross) || 0
+          const additionalValue = parseFloat(savedData.additionalIncome) || 0
+          const rentValue = parseFloat(savedData.annualRent) || 0
+          if (monthlyValue > 0) {
+            const calculation = calculatePAYE(
+              monthlyValue, 
+              rentValue, 
+              savedData.hasPension !== undefined ? savedData.hasPension : true,
+              savedData.hasNHF !== undefined ? savedData.hasNHF : true,
+              additionalValue
+            )
+            if (isMounted.current) {
+              setResults(calculation)
+              toast.success('Your calculation has been restored! You can now save it.')
+            }
+          }
+        }
+      }
+    }
+  }, [userProfile])
 
   const handleCalculate = (e) => {
     e.preventDefault()
     
     const monthlyValue = parseFloat(monthlyGross) || 0
+    const additionalValue = parseFloat(additionalIncome) || 0
     const rentValue = parseFloat(annualRent) || 0
 
-    if (monthlyValue <= 0) {
-      toast.error('Please enter a valid monthly gross salary')
+    if (monthlyValue <= 0 && additionalValue <= 0) {
+      toast.error('Please enter at least your monthly salary or additional income')
       return
     }
 
-    const calculation = calculatePAYE(monthlyValue, rentValue, hasPension, hasNHF)
+    const calculation = calculatePAYE(monthlyValue, rentValue, hasPension, hasNHF, additionalValue)
     setResults(calculation)
     toast.success('Tax calculated successfully!')
   }
 
   const handleSave = async () => {
-    if (!results) return
+    if (!results) {
+      toast.error('Please calculate your tax first')
+      return
+    }
+
+    // If user is not logged in, save to localStorage and redirect to signup
+    if (!userProfile?.id) {
+      const calcData = {
+        monthlyGross,
+        additionalIncome,
+        annualRent,
+        hasPension,
+        hasNHF,
+        analysisName,
+        results
+      }
+      
+      if (savePersonalCalculationData(calcData)) {
+        saveReturnUrl('/dashboard/personal')
+        toast.loading('Redirecting to signup...', { id: 'signup-redirect' })
+        navigate('/signup?return=personal')
+      } else {
+        toast.error('Failed to save your calculation. Please try again.')
+      }
+      return
+    }
 
     setSaving(true)
     try {
@@ -44,6 +117,7 @@ export default function PersonalTax({ userProfile }) {
           inputs: {
             name: analysisName || `Personal Tax - ${new Date().toLocaleDateString('en-NG')}`,
             monthlyGross,
+            additionalIncome,
             annualRent,
             hasPension,
             hasNHF
@@ -52,6 +126,9 @@ export default function PersonalTax({ userProfile }) {
 
       if (error) throw error
 
+      // Clear any stored calculation data after successful save
+      getPersonalCalculationData()
+      
       toast.success('Analysis saved successfully!')
       navigate('/dashboard/history')
     } catch (error) {
@@ -65,6 +142,10 @@ export default function PersonalTax({ userProfile }) {
   const handleDownload = () => {
     if (!results) return
 
+    const breakdownText = results.breakdown && results.breakdown.length > 0
+      ? results.breakdown.map(b => `${b.band}: ${formatCurrency(b.tax)} (${b.rate}%)`).join('\n')
+      : 'No tax applicable (income below threshold)'
+
     const content = `
 PERSONAL INCOME TAX ANALYSIS
 ============================
@@ -74,29 +155,29 @@ ${analysisName ? `Name: ${analysisName}` : ''}
 INPUTS
 ------
 Monthly Gross Salary: ${formatCurrency(parseFloat(monthlyGross) || 0)}
-Annual Gross Income: ${formatCurrency(results.annualGross)}
+${parseFloat(additionalIncome) > 0 ? `Additional Annual Income: ${formatCurrency(parseFloat(additionalIncome) || 0)}\n` : ''}Annual Gross Income: ${formatCurrency(results.annualGross || 0)}
 Annual Rent Paid: ${formatCurrency(parseFloat(annualRent) || 0)}
 Pension Contribution: ${hasPension ? 'Yes (8%)' : 'No'}
 NHF Contribution: ${hasNHF ? 'Yes (2.5%)' : 'No'}
 
 DEDUCTIONS
 ----------
-Pension (8%): ${formatCurrency(results.pension)}
-NHF (2.5%): ${formatCurrency(results.nhf)}
-Rent Relief (20% capped at ₦500,000): ${formatCurrency(results.rentRelief)}
-Total Deductions: ${formatCurrency(results.totalDeductions)}
+Pension (8%): ${formatCurrency(results.pension || 0)}
+NHF (2.5%): ${formatCurrency(results.nhf || 0)}
+Rent Relief (20% capped at ₦500,000): ${formatCurrency(results.rentRelief || 0)}
+Total Deductions: ${formatCurrency(results.totalDeductions || 0)}
 
 TAX CALCULATION
 ---------------
-Taxable Income: ${formatCurrency(results.taxableIncome)}
-Gross Tax: ${formatCurrency(results.grossTax)}
-Net Tax Payable: ${formatCurrency(results.netTax)}
-Monthly Tax: ${formatCurrency(results.monthlyTax)}
-Effective Tax Rate: ${results.effectiveRate.toFixed(2)}%
+Taxable Income: ${formatCurrency(results.taxableIncome || 0)}
+Gross Tax: ${formatCurrency(results.grossTax || results.netTax || 0)}
+Net Tax Payable: ${formatCurrency(results.netTax || 0)}
+Monthly Tax: ${formatCurrency(results.monthlyTax || 0)}
+Effective Tax Rate: ${(results.effectiveRate || 0).toFixed(2)}%
 
 TAX BREAKDOWN BY BAND
 ---------------------
-${results.breakdown.map(b => `${b.band}: ${formatCurrency(b.tax)} (${b.rate}%)`).join('\n')}
+${breakdownText}
 
 ---
 Generated by Taxify - Nigeria Tax Support Portal
@@ -119,6 +200,7 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
   const resetForm = () => {
     setResults(null)
     setMonthlyGross(userProfile?.monthly_salary?.toString() || '')
+    setAdditionalIncome('')
     setAnnualRent('')
     setHasPension(true)
     setHasNHF(true)
@@ -166,6 +248,26 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
                 className="input-field"
                 placeholder="e.g., 500000"
               />
+              <p className="text-xs text-slate-500 mt-1">
+                Enter your monthly salary. We'll calculate your annual tax based on this amount.
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="additionalIncome" className="block text-sm font-medium text-slate-700 mb-1">
+                Additional Annual Income (₦)
+              </label>
+              <input
+                id="additionalIncome"
+                type="number"
+                value={additionalIncome}
+                onChange={(e) => setAdditionalIncome(e.target.value)}
+                className="input-field"
+                placeholder="e.g., 500000"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Add any other annual income sources (e.g., freelance, rental income, dividends, etc.)
+              </p>
             </div>
 
             <div>
@@ -183,25 +285,37 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
               <p className="text-xs text-slate-500 mt-1">20% of rent is tax-deductible (max ₦500,000)</p>
             </div>
 
-            <div className="space-y-3">
-              <label className="flex items-center space-x-3 cursor-pointer">
+            <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
+              <p className="text-xs font-medium text-slate-600 mb-3">Deductions (reduce your taxable income)</p>
+              
+              <label className="flex items-start space-x-3 cursor-pointer group">
                 <input
                   type="checkbox"
                   checked={hasPension}
                   onChange={(e) => setHasPension(e.target.checked)}
-                  className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                  className="w-4 h-4 text-green-600 rounded focus:ring-green-500 mt-0.5"
                 />
-                <span className="text-sm text-slate-700">Contributing to Pension (8%)</span>
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-slate-700 block">Pension Contribution (8%)</span>
+                  <span className="text-xs text-slate-500">
+                    If you contribute to a pension fund, 8% of your annual income is deducted from your taxable income, reducing your tax.
+                  </span>
+                </div>
               </label>
 
-              <label className="flex items-center space-x-3 cursor-pointer">
+              <label className="flex items-start space-x-3 cursor-pointer group">
                 <input
                   type="checkbox"
                   checked={hasNHF}
                   onChange={(e) => setHasNHF(e.target.checked)}
-                  className="w-4 h-4 text-green-600 rounded focus:ring-green-500"
+                  className="w-4 h-4 text-green-600 rounded focus:ring-green-500 mt-0.5"
                 />
-                <span className="text-sm text-slate-700">Contributing to NHF (2.5%)</span>
+                <div className="flex-1">
+                  <span className="text-sm font-medium text-slate-700 block">NHF Contribution (2.5%)</span>
+                  <span className="text-xs text-slate-500">
+                    If you contribute to the National Housing Fund, 2.5% of your annual income is deducted from your taxable income, reducing your tax.
+                  </span>
+                </div>
               </label>
             </div>
 
@@ -235,12 +349,24 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
               {/* Summary */}
               <div className="bg-slate-50 rounded-lg p-4 space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Annual Gross Income</span>
-                  <span className="font-semibold">{formatCurrency(results.annualGross)}</span>
+                  <span className="text-slate-600">Annual Salary (Monthly × 12)</span>
+                  <span className="font-semibold">{formatCurrency((parseFloat(monthlyGross) || 0) * 12)}</span>
+                </div>
+                {(parseFloat(additionalIncome) || 0) > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-600">Additional Income</span>
+                    <span className="font-semibold">{formatCurrency(parseFloat(additionalIncome) || 0)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm border-t border-slate-200 pt-2">
+                  <span className="text-slate-700 font-medium">Annual Gross Income</span>
+                  <span className="font-bold">{formatCurrency(results.annualGross)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-600">Total Deductions</span>
-                  <span className="font-semibold text-green-600">-{formatCurrency(results.totalDeductions)}</span>
+                  <span className="font-semibold text-green-600">
+                    -{formatCurrency(results.totalDeductions || 0)}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm border-t border-slate-200 pt-2">
                   <span className="text-slate-800 font-medium">Taxable Income</span>
@@ -250,25 +376,38 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
 
               {/* Deductions Breakdown */}
               <div className="bg-green-50 rounded-lg p-4">
-                <h3 className="font-medium text-slate-900 mb-3">Deductions</h3>
-                <div className="space-y-2 text-sm">
-                  {results.pension > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">Pension (8%)</span>
-                      <span>{formatCurrency(results.pension)}</span>
+                <h3 className="font-medium text-slate-900 mb-3">Deductions Breakdown</h3>
+                <p className="text-xs text-slate-600 mb-3">These amounts reduce your taxable income:</p>
+                <div className="space-y-3 text-sm">
+                  {(results.pension || 0) > 0 && (
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-slate-700 font-medium block">Pension Contribution</span>
+                        <span className="text-xs text-slate-500">8% of annual income</span>
+                      </div>
+                      <span className="font-semibold text-green-700">{formatCurrency(results.pension || 0)}</span>
                     </div>
                   )}
-                  {results.nhf > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">NHF (2.5%)</span>
-                      <span>{formatCurrency(results.nhf)}</span>
+                  {(results.nhf || 0) > 0 && (
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-slate-700 font-medium block">NHF Contribution</span>
+                        <span className="text-xs text-slate-500">2.5% of annual income</span>
+                      </div>
+                      <span className="font-semibold text-green-700">{formatCurrency(results.nhf || 0)}</span>
                     </div>
                   )}
-                  {results.rentRelief > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-600">Rent Relief</span>
-                      <span>{formatCurrency(results.rentRelief)}</span>
+                  {(results.rentRelief || 0) > 0 && (
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <span className="text-slate-700 font-medium block">Rent Relief</span>
+                        <span className="text-xs text-slate-500">20% of annual rent (max ₦500,000)</span>
+                      </div>
+                      <span className="font-semibold text-green-700">{formatCurrency(results.rentRelief || 0)}</span>
                     </div>
+                  )}
+                  {((results.pension || 0) === 0 && (results.nhf || 0) === 0 && (results.rentRelief || 0) === 0) && (
+                    <p className="text-xs text-slate-500 italic">No deductions applied</p>
                   )}
                 </div>
               </div>
@@ -276,12 +415,18 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
               {/* Tax by Band */}
               {results.breakdown && results.breakdown.length > 0 && (
                 <div className="bg-blue-50 rounded-lg p-4">
-                  <h3 className="font-medium text-slate-900 mb-3">Tax by Band</h3>
+                  <h3 className="font-medium text-slate-900 mb-2">Tax Calculation by Income Band</h3>
+                  <p className="text-xs text-slate-600 mb-3">Your income is taxed at different rates:</p>
                   <div className="space-y-2 text-sm">
                     {results.breakdown.map((band, idx) => (
-                      <div key={idx} className="flex justify-between">
-                        <span className="text-slate-600">{band.band} ({band.rate}%)</span>
-                        <span>{formatCurrency(band.tax)}</span>
+                      <div key={idx} className="flex justify-between items-center py-1.5 border-b border-blue-100 last:border-0">
+                        <div className="flex-1">
+                          <span className="text-slate-700 font-medium block">{band.band}</span>
+                          <span className="text-xs text-slate-500">
+                            {band.amount > 0 ? `${formatCurrency(band.amount)} × ${band.rate}%` : 'Exempt'}
+                          </span>
+                        </div>
+                        <span className="font-semibold text-blue-700 ml-2">{formatCurrency(band.tax || 0)}</span>
                       </div>
                     ))}
                   </div>

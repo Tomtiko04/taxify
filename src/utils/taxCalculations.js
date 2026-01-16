@@ -4,10 +4,12 @@
  * @param {number} annualRent - Annual rent paid
  * @param {boolean} hasPension - Whether employee contributes to pension
  * @param {boolean} hasNHF - Whether employee contributes to NHF
+ * @param {number} additionalIncome - Additional annual income from other sources
  * @returns {object} Tax calculation breakdown
  */
-export function calculatePAYE(monthlyGross, annualRent = 0, hasPension = true, hasNHF = true) {
-  const annualGross = monthlyGross * 12
+export function calculatePAYE(monthlyGross, annualRent = 0, hasPension = true, hasNHF = true, additionalIncome = 0) {
+  const annualSalary = monthlyGross * 12
+  const annualGross = annualSalary + (additionalIncome || 0)
   
   // Deductions
   const pensionDeduction = hasPension ? annualGross * 0.08 : 0
@@ -70,20 +72,103 @@ export function calculatePAYE(monthlyGross, annualRent = 0, hasPension = true, h
   const netAnnual = annualGross - totalDeductions - tax
   const netMonthly = netAnnual / 12
   
+  // Build breakdown array for display
+  const breakdown = []
+  // Reset remainingIncome for breakdown calculation
+  remainingIncome = taxableIncome
+  
+  if (remainingIncome > 0) {
+    // 0 to ₦800k: 0%
+    if (remainingIncome <= 800000) {
+      breakdown.push({
+        band: 'First ₦800,000',
+        rate: 0,
+        tax: 0,
+        amount: remainingIncome
+      })
+    } else {
+      breakdown.push({
+        band: 'First ₦800,000',
+        rate: 0,
+        tax: 0,
+        amount: 800000
+      })
+      remainingIncome -= 800000
+      
+      // Next ₦2.2M: 15%
+      if (remainingIncome > 0) {
+        const band1 = Math.min(remainingIncome, 2200000)
+        breakdown.push({
+          band: 'Next ₦2,200,000',
+          rate: 15,
+          tax: band1 * 0.15,
+          amount: band1
+        })
+        remainingIncome -= band1
+      }
+      
+      // Next ₦9M: 18%
+      if (remainingIncome > 0) {
+        const band2 = Math.min(remainingIncome, 9000000)
+        breakdown.push({
+          band: 'Next ₦9,000,000',
+          rate: 18,
+          tax: band2 * 0.18,
+          amount: band2
+        })
+        remainingIncome -= band2
+      }
+      
+      // Next ₦13M: 21%
+      if (remainingIncome > 0) {
+        const band3 = Math.min(remainingIncome, 13000000)
+        breakdown.push({
+          band: 'Next ₦13,000,000',
+          rate: 21,
+          tax: band3 * 0.21,
+          amount: band3
+        })
+        remainingIncome -= band3
+      }
+      
+      // Next ₦25M: 23%
+      if (remainingIncome > 0) {
+        const band4 = Math.min(remainingIncome, 25000000)
+        breakdown.push({
+          band: 'Next ₦25,000,000',
+          rate: 23,
+          tax: band4 * 0.23,
+          amount: band4
+        })
+        remainingIncome -= band4
+      }
+      
+      // Above ₦50M: 25%
+      if (remainingIncome > 0) {
+        breakdown.push({
+          band: 'Above ₦50,000,000',
+          rate: 25,
+          tax: remainingIncome * 0.25,
+          amount: remainingIncome
+        })
+      }
+    }
+  }
+  
   return {
     annualGross,
-    deductions: {
-      pension: pensionDeduction,
-      nhf: nhfDeduction,
-      rentRelief: rentRelief,
-      total: totalDeductions
-    },
+    pension: pensionDeduction,
+    nhf: nhfDeduction,
+    rentRelief: rentRelief,
+    totalDeductions: totalDeductions,
     taxableIncome,
-    annualTax: tax,
+    grossTax: tax,
+    netTax: tax,
     monthlyTax: monthlyTax,
     netAnnual,
     netMonthly,
-    effectiveRate: annualGross > 0 ? (tax / annualGross) * 100 : 0
+    effectiveRate: annualGross > 0 ? (tax / annualGross) * 100 : 0,
+    breakdown: breakdown
   }
 }
 

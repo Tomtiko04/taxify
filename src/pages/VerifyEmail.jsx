@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
+import { getReturnUrl } from '../utils/storage'
 import toast from 'react-hot-toast'
 
 export default function VerifyEmail() {
@@ -27,9 +28,14 @@ export default function VerifyEmail() {
           if (session.user.email_confirmed_at) {
             setVerified(true)
             toast.success('Email verified successfully!')
+            
+            // Check if user was trying to save a calculation
+            const returnUrl = getReturnUrl()
+            const redirectPath = returnUrl || '/dashboard'
+            
             setTimeout(() => {
               if (isMounted.current) {
-                navigate('/dashboard')
+                navigate(redirectPath)
               }
             }, 2000)
           } else {
@@ -41,9 +47,14 @@ export default function VerifyEmail() {
               // User clicked verification link
               toast.success('Email verified! Redirecting...')
               setVerified(true)
+              
+              // Check if user was trying to save a calculation
+              const returnUrl = getReturnUrl()
+              const redirectPath = returnUrl || '/dashboard'
+              
               setTimeout(() => {
                 if (isMounted.current) {
-                  navigate('/dashboard')
+                  navigate(redirectPath)
                 }
               }, 2000)
             } else {
@@ -81,9 +92,14 @@ export default function VerifyEmail() {
         if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
           setVerified(true)
           toast.success('Email verified successfully!')
+          
+          // Check if user was trying to save a calculation
+          const returnUrl = getReturnUrl()
+          const redirectPath = returnUrl || '/dashboard'
+          
           setTimeout(() => {
             if (isMounted.current) {
-              navigate('/dashboard')
+              navigate(redirectPath)
             }
           }, 2000)
         }

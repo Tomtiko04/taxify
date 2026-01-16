@@ -4,10 +4,14 @@ import { supabase } from './lib/supabase'
 import Landing from './pages/Landing'
 import Signup from './pages/Signup'
 import Login from './pages/Login'
+import ForgotPassword from './pages/ForgotPassword'
+import ResetPassword from './pages/ResetPassword'
 import PersonalCalculator from './pages/PersonalCalculator'
 import BusinessCalculator from './pages/BusinessCalculator'
 import FAQ from './pages/FAQ'
 import VerifyEmail from './pages/VerifyEmail'
+import Terms from './pages/Terms'
+import Privacy from './pages/Privacy'
 import Navbar from './components/Navbar'
 import ChatbotSignup from './components/ChatbotSignup'
 import ScrollToTop from './components/ScrollToTop'
@@ -76,9 +80,13 @@ function App() {
         // When user signs in (especially via OAuth), ensure profile exists
         if (session?.user && _event === 'SIGNED_IN') {
           const profile = await ensureUserProfile(session.user)
-          setUserProfile(profile)
+          if (isMounted.current) {
+            setUserProfile(profile)
+          }
         } else if (_event === 'SIGNED_OUT') {
-          setUserProfile(null)
+          if (isMounted.current) {
+            setUserProfile(null)
+          }
         }
       })
       subscription = data.subscription
@@ -202,20 +210,10 @@ function App() {
             <ScrollToTop />
           </div>
         } />
-        <Route path="/signup" element={
-          <div className="min-h-screen bg-slate-50">
-            <Navbar session={session} userProfile={userProfile} />
-            <Signup />
-            <ScrollToTop />
-          </div>
-        } />
-        <Route path="/login" element={
-          <div className="min-h-screen bg-slate-50">
-            <Navbar session={session} userProfile={userProfile} />
-            <Login />
-            <ScrollToTop />
-          </div>
-        } />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/verify-email" element={
           <div className="min-h-screen bg-slate-50">
             <Navbar session={session} userProfile={userProfile} />

@@ -6,6 +6,7 @@ import toast from 'react-hot-toast'
 
 export default function PersonalCalculator() {
   const [monthlyGross, setMonthlyGross] = useState('')
+  const [additionalIncome, setAdditionalIncome] = useState('')
   const [annualRent, setAnnualRent] = useState('')
   const [hasPension, setHasPension] = useState(true)
   const [hasNHF, setHasNHF] = useState(true)
@@ -45,14 +46,15 @@ export default function PersonalCalculator() {
     e.preventDefault()
     
     const gross = parseFloat(monthlyGross) || 0
+    const additional = parseFloat(additionalIncome) || 0
     const rent = parseFloat(annualRent) || 0
 
-    if (gross <= 0) {
-      toast.error('Please enter a valid monthly gross income')
+    if (gross <= 0 && additional <= 0) {
+      toast.error('Please enter at least your monthly salary or additional income')
       return
     }
 
-    const calculation = calculatePAYE(gross, rent, hasPension, hasNHF)
+    const calculation = calculatePAYE(gross, rent, hasPension, hasNHF, additional)
     setResults(calculation)
   }
 
@@ -86,6 +88,25 @@ export default function PersonalCalculator() {
                   className="input-field"
                   placeholder="e.g., 200000"
                 />
+              </div>
+
+              <div>
+                <label htmlFor="additionalIncome" className="block text-sm font-medium text-slate-700 mb-2">
+                  Additional Annual Income (₦)
+                </label>
+                <input
+                  id="additionalIncome"
+                  type="number"
+                  min="0"
+                  step="1000"
+                  value={additionalIncome}
+                  onChange={(e) => setAdditionalIncome(e.target.value)}
+                  className="input-field"
+                  placeholder="e.g., 500000"
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  Add any other annual income sources (freelance, rental, dividends, etc.)
+                </p>
               </div>
 
               <div>
@@ -150,7 +171,17 @@ export default function PersonalCalculator() {
                 {/* Summary */}
                 <div className="bg-green-50 rounded-lg p-4 border border-green-200">
                   <div className="flex justify-between items-center mb-2">
-                    <span className="text-slate-700">Annual Gross Income</span>
+                    <span className="text-slate-700">Annual Salary (Monthly × 12)</span>
+                    <span className="font-semibold">{formatCurrency((parseFloat(monthlyGross) || 0) * 12)}</span>
+                  </div>
+                  {(parseFloat(additionalIncome) || 0) > 0 && (
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-slate-700">Additional Income</span>
+                      <span className="font-semibold">{formatCurrency(parseFloat(additionalIncome) || 0)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center mb-2 border-t border-green-200 pt-2">
+                    <span className="text-slate-700 font-medium">Annual Gross Income</span>
                     <span className="font-bold text-lg">{formatCurrency(results.annualGross)}</span>
                   </div>
                   <div className="flex justify-between items-center mb-2">
@@ -229,7 +260,7 @@ export default function PersonalCalculator() {
                                 user_id: session.user.id,
                                 calculation_type: 'personal',
                                 data: results,
-                                inputs: { monthlyGross, annualRent, hasPension, hasNHF }
+                                inputs: { monthlyGross, additionalIncome, annualRent, hasPension, hasNHF }
                               })
                             if (error) throw error
                             toast.success('Calculation saved successfully!')

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { calculateCIT, formatCurrency } from '../../utils/taxCalculations'
 import { supabase } from '../../lib/supabase'
+import { saveBusinessCalculationData, getBusinessCalculationData, saveReturnUrl } from '../../utils/storage'
 import toast from 'react-hot-toast'
 
 export default function BusinessTax({ userProfile }) {
@@ -26,6 +27,46 @@ export default function BusinessTax({ userProfile }) {
     whtNotes: null
   })
   const isMounted = useRef(true)
+
+  // Restore calculation data after signup/login
+  useEffect(() => {
+    if (userProfile?.id && results === null) {
+      const savedData = getBusinessCalculationData()
+      if (savedData) {
+        setMode(savedData.mode || 'manual')
+        setTurnover(savedData.turnover || '')
+        setAssets(savedData.assets || '')
+        setProfit(savedData.profit || '')
+        setCompanyName(savedData.companyName || userProfile?.company_name || '')
+        setDepreciation(savedData.depreciation || '0')
+        setFines(savedData.fines || '0')
+        setCapitalAllowances(savedData.capitalAllowances || '0')
+        
+        // Recalculate if we have the inputs
+        if (savedData.turnover) {
+          const turnoverValue = parseFloat(savedData.turnover) || 0
+          const assetsValue = parseFloat(savedData.assets) || 0
+          const profitValue = parseFloat(savedData.profit) || 0
+          const depreciationValue = parseFloat(savedData.depreciation) || 0
+          const finesValue = parseFloat(savedData.fines) || 0
+          const capitalAllowancesValue = parseFloat(savedData.capitalAllowances) || 0
+          
+          if (turnoverValue > 0) {
+            const calculation = calculateCIT(
+              turnoverValue,
+              assetsValue,
+              profitValue,
+              depreciationValue,
+              finesValue,
+              capitalAllowancesValue
+            )
+            setResults(calculation)
+            toast.success('Your calculation has been restored! You can now save it.')
+          }
+        }
+      }
+    }
+  }, [userProfile])
 
   const documentTypes = [
     { id: 'auditedStatement', name: 'Audited Financial Statement', required: true, icon: '📋' },
@@ -153,7 +194,34 @@ export default function BusinessTax({ userProfile }) {
   }
 
   const handleSave = async () => {
-    if (!results) return
+    if (!results) {
+      toast.error('Please calculate your tax first')
+      return
+    }
+
+    // If user is not logged in, save to localStorage and redirect to signup
+    if (!userProfile?.id) {
+      const calcData = {
+        mode,
+        turnover,
+        assets,
+        profit,
+        companyName,
+        depreciation,
+        fines,
+        capitalAllowances,
+        results
+      }
+      
+      if (saveBusinessCalculationData(calcData)) {
+        saveReturnUrl('/dashboard/business')
+        toast.loading('Redirecting to signup...', { id: 'signup-redirect' })
+        navigate('/signup?return=business')
+      } else {
+        toast.error('Failed to save your calculation. Please try again.')
+      }
+      return
+    }
 
     setSaving(true)
     try {
@@ -171,6 +239,9 @@ export default function BusinessTax({ userProfile }) {
 
       if (error) throw error
 
+      // Clear any stored calculation data after successful save
+      getBusinessCalculationData()
+      
       toast.success('Analysis saved successfully!')
       navigate('/dashboard/history')
     } catch (error) {
