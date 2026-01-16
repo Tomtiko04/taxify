@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { calculatePAYE, formatCurrency } from '../utils/taxCalculations'
 import { supabase } from '../lib/supabase'
@@ -12,18 +12,33 @@ export default function PersonalCalculator() {
   const [results, setResults] = useState(null)
   const [session, setSession] = useState(null)
   const navigate = useNavigate()
+  const isMounted = useRef(true)
 
   // Check session on mount
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    isMounted.current = true
+    
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error?.name === 'AbortError' || !isMounted.current) return
       setSession(session)
+    }).catch(err => {
+      if (err?.name !== 'AbortError') console.error(err)
     })
     
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-    })
+    let subscription = null
+    try {
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (isMounted.current) setSession(session)
+      })
+      subscription = data?.subscription
+    } catch (err) {
+      console.error('Auth listener error:', err)
+    }
     
-    return () => subscription.unsubscribe()
+    return () => {
+      isMounted.current = false
+      if (subscription) subscription.unsubscribe()
+    }
   }, [])
 
   const handleCalculate = (e) => {
@@ -42,7 +57,7 @@ export default function PersonalCalculator() {
   }
 
   return (
-    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-50 to-primary-50">
+    <div className="min-h-screen pt-24 pb-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-50 to-primary-50">
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-slate-900 mb-4">Personal Income Tax Calculator</h1>

@@ -30,7 +30,9 @@ export default function Login() {
       }
 
       toast.success('Welcome back!')
-      navigate('/personal-calculator')
+      
+      // Redirect to dashboard
+      navigate('/dashboard')
     } catch (error) {
       toast.error(error.message || 'Invalid email or password')
     } finally {
@@ -39,7 +41,7 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-slate-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-slate-100 pt-24 pb-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center space-x-2">
@@ -139,7 +141,7 @@ export default function Login() {
                   const { error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
-                      redirectTo: `${window.location.origin}/personal-calculator`
+                      redirectTo: `${window.location.origin}/dashboard`
                     }
                   })
                   if (error) throw error

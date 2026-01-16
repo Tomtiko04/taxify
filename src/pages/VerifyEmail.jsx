@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
@@ -8,11 +8,19 @@ export default function VerifyEmail() {
   const [verified, setVerified] = useState(false)
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const isMounted = useRef(true)
 
   useEffect(() => {
+    isMounted.current = true
+
     const checkVerification = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession()
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        // Ignore AbortError
+        if (error?.name === 'AbortError') return
+        
+        if (!isMounted.current) return
         
         if (session?.user) {
           // Check if email is verified
@@ -20,7 +28,9 @@ export default function VerifyEmail() {
             setVerified(true)
             toast.success('Email verified successfully!')
             setTimeout(() => {
-              navigate('/personal-calculator')
+              if (isMounted.current) {
+                navigate('/dashboard')
+              }
             }, 2000)
           } else {
             // Check for verification token in URL
@@ -32,7 +42,9 @@ export default function VerifyEmail() {
               toast.success('Email verified! Redirecting...')
               setVerified(true)
               setTimeout(() => {
-                navigate('/personal-calculator')
+                if (isMounted.current) {
+                  navigate('/dashboard')
+                }
               }, 2000)
             } else {
               setVerified(false)
@@ -42,27 +54,50 @@ export default function VerifyEmail() {
           setVerified(false)
         }
       } catch (error) {
+        // Ignore AbortError - it's expected when navigating away
+        if (error?.name === 'AbortError') return
         console.error('Verification check error:', error)
-        toast.error('Error checking verification status')
+        // Don't show error toast for AbortError or if unmounted
+        if (isMounted.current) {
+          toast.error('Error checking verification status')
+        }
       } finally {
-        setLoading(false)
+        if (isMounted.current) {
+          setLoading(false)
+        }
       }
     }
 
-    checkVerification()
+    // Small delay to let any pending navigation complete
+    const timeoutId = setTimeout(() => {
+      checkVerification()
+    }, 100)
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
-        setVerified(true)
-        toast.success('Email verified successfully!')
-        setTimeout(() => {
-          navigate('/personal-calculator')
-        }, 2000)
-      }
-    })
+    let subscription = null
+    try {
+      const { data } = supabase.auth.onAuthStateChange((event, session) => {
+        if (!isMounted.current) return
+        if (event === 'SIGNED_IN' && session?.user?.email_confirmed_at) {
+          setVerified(true)
+          toast.success('Email verified successfully!')
+          setTimeout(() => {
+            if (isMounted.current) {
+              navigate('/dashboard')
+            }
+          }, 2000)
+        }
+      })
+      subscription = data?.subscription
+    } catch (error) {
+      console.error('Auth listener error:', error)
+    }
 
-    return () => subscription.unsubscribe()
+    return () => {
+      isMounted.current = false
+      clearTimeout(timeoutId)
+      if (subscription) subscription.unsubscribe()
+    }
   }, [searchParams, navigate])
 
   const handleResendEmail = async () => {
@@ -82,14 +117,14 @@ export default function VerifyEmail() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-slate-100">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-slate-100 pt-20">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-slate-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-slate-100 pt-24 pb-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center space-x-2">
@@ -113,10 +148,10 @@ export default function VerifyEmail() {
                 Your email has been successfully verified. You can now use all features of Taxify.
               </p>
               <Link
-                to="/personal-calculator"
+                to="/"
                 className="inline-block btn-primary"
               >
-                Get Started
+                Go to Dashboard
               </Link>
             </>
           ) : (

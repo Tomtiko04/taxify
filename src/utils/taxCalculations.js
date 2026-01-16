@@ -90,39 +90,51 @@ export function calculatePAYE(monthlyGross, annualRent = 0, hasPension = true, h
 /**
  * Calculate Corporate Income Tax (CIT) based on Nigeria Tax Act 2025
  * @param {number} turnover - Annual turnover
- * @param {number} assets - Total assets value
+ * @param {number} assets - Total assets value (Net Book Value of PPE)
+ * @param {number} profit - Net profit before tax
+ * @param {number} depreciation - Depreciation for the year
+ * @param {number} fines - Fines and non-deductible penalties
+ * @param {number} capitalAllowances - Capital allowances for the year
  * @returns {object} Tax calculation breakdown
  */
-export function calculateCIT(turnover, assets = 0) {
-  const isSmallBusiness = turnover < 50000000
+export function calculateCIT(turnover, assets = 0, profit = 0, depreciation = 0, fines = 0, capitalAllowances = 0) {
+  // NTA 2025 Thresholds: 
+  // Small Company: Turnover <= ₦100M AND Assets <= ₦250M
+  // Large Company: Turnover > ₦100M OR Assets > ₦250M
+  const isSmallCompany = turnover <= 100000000 && assets <= 250000000
+  
+  // Assessable Profit = (Net Profit + Depreciation + Fines) - Capital Allowances
+  const assessableProfit = Math.max(0, (profit + depreciation + fines) - capitalAllowances)
   
   let cit = 0
   let developmentLevy = 0
   
-  if (isSmallBusiness) {
+  if (isSmallCompany) {
     cit = 0
     developmentLevy = 0
   } else {
-    // For large businesses, we need profit. Using a simplified calculation
-    // In reality, CIT is calculated on profit, not turnover
-    // This is a simplified version assuming a profit margin
-    // Note: Actual CIT calculation requires profit, not turnover
-    cit = 0 // Will be calculated based on profit
-    developmentLevy = turnover * 0.04
+    // Large Company: 30% CIT + 4% Development Levy on Assessable Profit
+    cit = assessableProfit * 0.30
+    developmentLevy = assessableProfit * 0.04
   }
   
   return {
     turnover,
     assets,
-    isSmallBusiness,
-    citRate: isSmallBusiness ? 0 : 30,
-    developmentLevyRate: isSmallBusiness ? 0 : 4,
+    profit,
+    depreciation,
+    fines,
+    capitalAllowances,
+    assessableProfit,
+    isSmallBusiness: isSmallCompany,
+    citRate: isSmallCompany ? 0 : 30,
+    developmentLevyRate: isSmallCompany ? 0 : 4,
     cit,
     developmentLevy,
     totalTax: cit + developmentLevy,
-    note: isSmallBusiness 
-      ? "Small businesses (turnover < ₦50M) are exempt from CIT and Development Levy"
-      : "CIT is calculated on profit (not turnover). Development Levy is 4% of turnover."
+    note: isSmallCompany 
+      ? "Small businesses (Turnover <= ₦100M AND Assets <= ₦250M) are exempt from CIT, Development Levy, and VAT (registration optional)."
+      : "Large businesses (Turnover > ₦100M OR Assets > ₦250M) pay 30% CIT and 4% Development Levy on assessable profit. VAT registration is mandatory."
   }
 }
 

@@ -115,69 +115,12 @@ export default function Signup() {
 
       if (error) throw error
 
-      // Wait a bit for the trigger to create the profile, then update it with additional data
-      if (data.user) {
-        // Wait for trigger to complete (give it 1 second)
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        
-        const profileData = {
-          id: data.user.id,
-          user_type: userType,
-          full_name: userType === 'individual' ? formData.fullName : formData.companyName,
-          monthly_salary: userType === 'individual' && formData.monthlySalary 
-            ? parseFloat(formData.monthlySalary) 
-            : null,
-          company_name: userType === 'company' ? formData.companyName : null,
-          business_type: userType === 'company' ? formData.businessType : null,
-          annual_turnover: userType === 'company' && formData.annualTurnover
-            ? parseFloat(formData.annualTurnover) 
-            : null,
-          annual_income: userType === 'individual' && formData.monthlySalary
-            ? parseFloat(formData.monthlySalary) * 12 
-            : null,
-          email: email
-        }
-
-        // Update profile (trigger should have created it, but we'll ensure it exists)
-        try {
-          // First check if profile exists
-          const { data: existingProfile } = await supabase
-            .from('user_profiles')
-            .select('id')
-            .eq('id', data.user.id)
-            .single()
-
-          if (existingProfile) {
-            // Profile exists, update it
-            const { error: profileError } = await supabase
-              .from('user_profiles')
-              .update(profileData)
-              .eq('id', data.user.id)
-            
-            if (profileError) {
-              console.error('Profile update error (non-critical):', profileError)
-            }
-          } else {
-            // Profile doesn't exist yet, try to insert (trigger might not have run yet)
-            await new Promise(resolve => setTimeout(resolve, 500))
-            const { error: insertError } = await supabase
-              .from('user_profiles')
-              .insert(profileData)
-            
-            if (insertError) {
-              console.error('Profile insert error (non-critical):', insertError)
-            }
-          }
-        } catch (profileErr) {
-          console.error('Profile update exception (non-critical):', profileErr)
-        }
-      }
-
       toast.success('Account created! Please check your email to verify your account.')
+      
+      // Navigate immediately - profile will be created by trigger or on first login
       navigate(`/verify-email?email=${encodeURIComponent(email)}`)
     } catch (error) {
       toast.error(error.message || 'An error occurred during signup')
-    } finally {
       setLoading(false)
     }
   }
@@ -221,7 +164,7 @@ export default function Signup() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-slate-100 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-slate-100 pt-24 pb-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl w-full">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center space-x-2">

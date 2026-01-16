@@ -1,5 +1,5 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
-import { useState, useEffect } from 'react'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from './lib/supabase'
 import Landing from './pages/Landing'
 import Signup from './pages/Signup'
@@ -10,37 +10,87 @@ import FAQ from './pages/FAQ'
 import VerifyEmail from './pages/VerifyEmail'
 import Navbar from './components/Navbar'
 import ChatbotSignup from './components/ChatbotSignup'
-import toast from 'react-hot-toast'
+import ScrollToTop from './components/ScrollToTop'
+import DashboardLayout from './components/DashboardLayout'
+import Overview from './pages/dashboard/Overview'
+import PersonalTax from './pages/dashboard/PersonalTax'
+import BusinessTax from './pages/dashboard/BusinessTax'
+import History from './pages/dashboard/History'
+import Profile from './pages/dashboard/Profile'
 
 function App() {
   const [session, setSession] = useState(null)
+  const [userProfile, setUserProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const isMounted = useRef(true)
 
   useEffect(() => {
-    // Check active session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setLoading(false)
-      
-      // Handle OAuth callback - ensure profile exists
-      if (session?.user) {
-        ensureUserProfile(session.user)
+    isMounted.current = true
+    
+    // Safety timeout: if loading takes > 3 seconds, just show the app
+    const loadingTimeout = setTimeout(() => {
+      if (isMounted.current) {
+        console.warn('Loading timeout reached - forcing loading to false')
+        setLoading(false)
       }
-    })
+    }, 3000)
+
+    // Check active session with a timeout/error catch to prevent stuck loading
+    const fetchSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        // Ignore AbortError
+        if (error?.name === 'AbortError') return
+        if (!isMounted.current) return
+        
+        if (error) {
+          console.error('Supabase session error:', error)
+        }
+        setSession(session)
+        if (session?.user) {
+          const profile = await ensureUserProfile(session.user)
+          if (isMounted.current) {
+            setUserProfile(profile)
+          }
+        }
+      } catch (error) {
+        if (error?.name === 'AbortError') return
+        console.error('Critical error fetching session:', error)
+      } finally {
+        if (isMounted.current) {
+          setLoading(false)
+          clearTimeout(loadingTimeout)
+        }
+      }
+    }
+
+    fetchSession()
 
     // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setSession(session)
-      
-      // When user signs in (especially via OAuth), ensure profile exists
-      if (session?.user && _event === 'SIGNED_IN') {
-        await ensureUserProfile(session.user)
-      }
-    })
+    let subscription = null
+    try {
+      const { data } = supabase.auth.onAuthStateChange(async (_event, session) => {
+        setSession(session)
+        
+        // When user signs in (especially via OAuth), ensure profile exists
+        if (session?.user && _event === 'SIGNED_IN') {
+          const profile = await ensureUserProfile(session.user)
+          setUserProfile(profile)
+        } else if (_event === 'SIGNED_OUT') {
+          setUserProfile(null)
+        }
+      })
+      subscription = data.subscription
+    } catch (error) {
+      console.error('Error setting up auth listener:', error)
+    }
 
-    return () => subscription.unsubscribe()
+    return () => {
+      isMounted.current = false
+      if (subscription) subscription.unsubscribe()
+      clearTimeout(loadingTimeout)
+    }
   }, [])
 
   // Helper function to ensure user profile exists
@@ -49,12 +99,17 @@ function App() {
       // Wait a moment for trigger to complete
       await new Promise(resolve => setTimeout(resolve, 300))
       
+      if (!isMounted.current) return null
+      
       // Check if profile exists
       const { data: existingProfile, error: checkError } = await supabase
         .from('user_profiles')
-        .select('id')
+        .select('*')
         .eq('id', user.id)
         .single()
+
+      if (checkError?.name === 'AbortError') return null
+      if (!isMounted.current) return null
 
       // If profile doesn't exist, create it
       if (!existingProfile || checkError?.code === 'PGRST116') {
@@ -76,29 +131,42 @@ function App() {
             : null
         }
 
-        const { error: insertError } = await supabase
+        if (!isMounted.current) return profileData
+
+        const { data: newProfile, error: insertError } = await supabase
           .from('user_profiles')
           .upsert(profileData, {
             onConflict: 'id'
           })
+          .select()
+          .single()
         
+        if (insertError?.name === 'AbortError') return profileData
         if (insertError) {
           console.error('Error creating/updating user profile:', insertError)
+          return profileData // Fallback to what we tried to insert
         }
+        return newProfile
       } else if (existingProfile) {
+        if (!isMounted.current) return existingProfile
+        
         // Update email if it changed (for OAuth users)
         const { error: updateError } = await supabase
           .from('user_profiles')
           .update({ email: user.email })
           .eq('id', user.id)
         
-        if (updateError) {
+        if (updateError && updateError.name !== 'AbortError') {
           console.error('Error updating user profile email:', updateError)
         }
+        return { ...existingProfile, email: user.email }
       }
+      return existingProfile
     } catch (error) {
+      // Ignore AbortError - it's expected when navigating away
+      if (error?.name === 'AbortError') return null
       console.error('Error ensuring user profile:', error)
-      // Don't throw - this is a non-critical operation
+      return null
     }
   }
 
@@ -110,21 +178,119 @@ function App() {
     )
   }
 
+  // Handle profile updates from Profile page
+  const handleProfileUpdate = (updatedProfile) => {
+    setUserProfile(updatedProfile)
+  }
+
+  // Protected route wrapper
+  const ProtectedRoute = ({ children }) => {
+    if (!session) {
+      return <Navigate to="/login" replace />
+    }
+    return children
+  }
+
   return (
     <Router>
-      <div className="min-h-screen bg-slate-50">
-        <Navbar session={session} />
-        <Routes>
-          <Route path="/" element={<Landing />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/verify-email" element={<VerifyEmail />} />
-          <Route path="/personal-calculator" element={<PersonalCalculator />} />
-          <Route path="/business-calculator" element={<BusinessCalculator />} />
-          <Route path="/faq" element={<FAQ />} />
-          <Route path="/aiSignup" element={<ChatbotSignup />} />
-        </Routes>
-      </div>
+      <Routes>
+        {/* Public pages with Navbar */}
+        <Route path="/" element={
+          <div className="min-h-screen bg-slate-50">
+            <Navbar session={session} userProfile={userProfile} />
+            <Landing session={session} userProfile={userProfile} />
+            <ScrollToTop />
+          </div>
+        } />
+        <Route path="/signup" element={
+          <div className="min-h-screen bg-slate-50">
+            <Navbar session={session} userProfile={userProfile} />
+            <Signup />
+            <ScrollToTop />
+          </div>
+        } />
+        <Route path="/login" element={
+          <div className="min-h-screen bg-slate-50">
+            <Navbar session={session} userProfile={userProfile} />
+            <Login />
+            <ScrollToTop />
+          </div>
+        } />
+        <Route path="/verify-email" element={
+          <div className="min-h-screen bg-slate-50">
+            <Navbar session={session} userProfile={userProfile} />
+            <VerifyEmail />
+            <ScrollToTop />
+          </div>
+        } />
+        <Route path="/faq" element={
+          <div className="min-h-screen bg-slate-50">
+            <Navbar session={session} userProfile={userProfile} />
+            <FAQ />
+            <ScrollToTop />
+          </div>
+        } />
+        <Route path="/aiSignup" element={
+          <div className="min-h-screen bg-slate-50">
+            <Navbar session={session} userProfile={userProfile} />
+            <ChatbotSignup />
+            <ScrollToTop />
+          </div>
+        } />
+
+        {/* Guest calculators (no login required) */}
+        <Route path="/personal-calculator" element={
+          <div className="min-h-screen bg-slate-50">
+            <Navbar session={session} userProfile={userProfile} />
+            <PersonalCalculator />
+            <ScrollToTop />
+          </div>
+        } />
+        <Route path="/business-calculator" element={
+          <div className="min-h-screen bg-slate-50">
+            <Navbar session={session} userProfile={userProfile} />
+            <BusinessCalculator />
+            <ScrollToTop />
+          </div>
+        } />
+
+        {/* Dashboard routes (protected) */}
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <DashboardLayout userProfile={userProfile}>
+              <Overview userProfile={userProfile} />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/personal" element={
+          <ProtectedRoute>
+            <DashboardLayout userProfile={userProfile}>
+              <PersonalTax userProfile={userProfile} />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/business" element={
+          <ProtectedRoute>
+            <DashboardLayout userProfile={userProfile}>
+              <BusinessTax userProfile={userProfile} />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/history" element={
+          <ProtectedRoute>
+            <DashboardLayout userProfile={userProfile}>
+              <History userProfile={userProfile} />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/profile" element={
+          <ProtectedRoute>
+            <DashboardLayout userProfile={userProfile}>
+              <Profile userProfile={userProfile} onProfileUpdate={handleProfileUpdate} />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } />
+      </Routes>
     </Router>
   )
 }
