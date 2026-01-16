@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
@@ -12,6 +12,10 @@ export default function Login() {
   const [errors, setErrors] = useState({})
   const [touched, setTouched] = useState({})
   const navigate = useNavigate()
+  const location = useLocation()
+  
+  // Get the redirect path from location state (if redirected from protected route)
+  const from = location.state?.from || '/dashboard'
 
   // Validation functions
   const validateEmail = (value) => {
@@ -69,12 +73,13 @@ export default function Login() {
       if (data.user && !data.user.email_confirmed_at) {
         toast.error('Please verify your email before signing in.')
         await supabase.auth.signOut()
-        navigate(`/verify-email?email=${encodeURIComponent(email)}`)
+        navigate(`/verify-email?email=${encodeURIComponent(email)}`, { state: { from } })
         return
       }
 
       toast.success('Welcome back!')
-      navigate('/dashboard')
+      // Redirect to the original location or dashboard
+      navigate(from, { replace: true })
     } catch (error) {
       toast.error(error.message || 'Invalid email or password')
     } finally {

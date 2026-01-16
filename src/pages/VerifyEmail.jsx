@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getReturnUrl } from '../utils/storage'
 import toast from 'react-hot-toast'
@@ -9,7 +9,11 @@ export default function VerifyEmail() {
   const [verified, setVerified] = useState(false)
   const [loading, setLoading] = useState(true)
   const navigate = useNavigate()
+  const location = useLocation()
   const isMounted = useRef(true)
+  
+  // Get redirect path from location state or localStorage
+  const from = location.state?.from || getReturnUrl() || '/dashboard'
 
   useEffect(() => {
     isMounted.current = true
@@ -29,13 +33,10 @@ export default function VerifyEmail() {
             setVerified(true)
             toast.success('Email verified successfully!')
             
-            // Check if user was trying to save a calculation
-            const returnUrl = getReturnUrl()
-            const redirectPath = returnUrl || '/dashboard'
-            
+            // Redirect to the original destination or dashboard
             setTimeout(() => {
               if (isMounted.current) {
-                navigate(redirectPath)
+                navigate(from, { replace: true })
               }
             }, 2000)
           } else {

@@ -4,18 +4,47 @@ import { calculatePAYE, formatCurrency } from '../../utils/taxCalculations'
 import { supabase } from '../../lib/supabase'
 import { savePersonalCalculationData, getPersonalCalculationData, saveReturnUrl } from '../../utils/storage'
 import toast from 'react-hot-toast'
+import jsPDF from 'jspdf'
 
 export default function PersonalTax({ userProfile }) {
   const navigate = useNavigate()
   const [monthlyGross, setMonthlyGross] = useState(userProfile?.monthly_salary?.toString() || '')
-  const [additionalIncome, setAdditionalIncome] = useState('')
+  const [additionalIncomes, setAdditionalIncomes] = useState([{ name: '', amount: '' }])
   const [annualRent, setAnnualRent] = useState('')
   const [hasPension, setHasPension] = useState(true)
   const [hasNHF, setHasNHF] = useState(true)
   const [analysisName, setAnalysisName] = useState('')
   const [results, setResults] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [session, setSession] = useState(null)
   const isMounted = useRef(true)
+
+  // Check session on mount
+  useEffect(() => {
+    isMounted.current = true
+    
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error?.name === 'AbortError' || !isMounted.current) return
+      setSession(session)
+    }).catch(err => {
+      if (err?.name !== 'AbortError') console.error(err)
+    })
+    
+    let subscription = null
+    try {
+      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+        if (isMounted.current) setSession(session)
+      })
+      subscription = data?.subscription
+    } catch (err) {
+      console.error('Auth listener error:', err)
+    }
+    
+    return () => {
+      isMounted.current = false
+      if (subscription) subscription.unsubscribe()
+    }
+  }, [])
 
   useEffect(() => {
     isMounted.current = true
@@ -28,11 +57,11 @@ export default function PersonalTax({ userProfile }) {
   useEffect(() => {
     if (!isMounted.current) return
     
-    if (userProfile?.id && results === null) {
+    if (session?.user && results === null) {
       const savedData = getPersonalCalculationData()
       if (savedData) {
         setMonthlyGross(savedData.monthlyGross || userProfile?.monthly_salary?.toString() || '')
-        setAdditionalIncome(savedData.additionalIncome || '')
+        setAdditionalIncomes(savedData.additionalIncomes || [{ name: '', amount: '' }])
         setAnnualRent(savedData.annualRent || '')
         setHasPension(savedData.hasPension !== undefined ? savedData.hasPension : true)
         setHasNHF(savedData.hasNHF !== undefined ? savedData.hasNHF : true)
@@ -41,15 +70,15 @@ export default function PersonalTax({ userProfile }) {
         // Recalculate if we have the inputs
         if (savedData.monthlyGross) {
           const monthlyValue = parseFloat(savedData.monthlyGross) || 0
-          const additionalValue = parseFloat(savedData.additionalIncome) || 0
+          const additionalTotal = (savedData.additionalIncomes || []).reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
           const rentValue = parseFloat(savedData.annualRent) || 0
-          if (monthlyValue > 0) {
+          if (monthlyValue > 0 || additionalTotal > 0) {
             const calculation = calculatePAYE(
               monthlyValue, 
               rentValue, 
               savedData.hasPension !== undefined ? savedData.hasPension : true,
               savedData.hasNHF !== undefined ? savedData.hasNHF : true,
-              additionalValue
+              additionalTotal
             )
             if (isMounted.current) {
               setResults(calculation)
@@ -59,23 +88,42 @@ export default function PersonalTax({ userProfile }) {
         }
       }
     }
-  }, [userProfile])
+  }, [session, userProfile])
 
   const handleCalculate = (e) => {
     e.preventDefault()
     
     const monthlyValue = parseFloat(monthlyGross) || 0
-    const additionalValue = parseFloat(additionalIncome) || 0
+    const additionalTotal = additionalIncomes.reduce((sum, item) => {
+      const amount = parseFloat(item.amount) || 0
+      return sum + amount
+    }, 0)
     const rentValue = parseFloat(annualRent) || 0
 
-    if (monthlyValue <= 0 && additionalValue <= 0) {
-      toast.error('Please enter at least your monthly salary or additional income')
+    if (monthlyValue <= 0 && additionalTotal <= 0) {
+      toast.error('Please enter at least your monthly salary or add additional income')
       return
     }
 
-    const calculation = calculatePAYE(monthlyValue, rentValue, hasPension, hasNHF, additionalValue)
+    const calculation = calculatePAYE(monthlyValue, rentValue, hasPension, hasNHF, additionalTotal)
     setResults(calculation)
     toast.success('Tax calculated successfully!')
+  }
+
+  const addAdditionalIncome = () => {
+    setAdditionalIncomes([...additionalIncomes, { name: '', amount: '' }])
+  }
+
+  const removeAdditionalIncome = (index) => {
+    if (additionalIncomes.length > 1) {
+      setAdditionalIncomes(additionalIncomes.filter((_, i) => i !== index))
+    }
+  }
+
+  const updateAdditionalIncome = (index, field, value) => {
+    const updated = [...additionalIncomes]
+    updated[index][field] = value
+    setAdditionalIncomes(updated)
   }
 
   const handleSave = async () => {
@@ -84,11 +132,11 @@ export default function PersonalTax({ userProfile }) {
       return
     }
 
-    // If user is not logged in, save to localStorage and redirect to signup
-    if (!userProfile?.id) {
+    // Check session instead of userProfile - this is a protected route so session should exist
+    if (!session?.user) {
       const calcData = {
         monthlyGross,
-        additionalIncome,
+        additionalIncomes,
         annualRent,
         hasPension,
         hasNHF,
@@ -111,13 +159,13 @@ export default function PersonalTax({ userProfile }) {
       const { error } = await supabase
         .from('saved_calculations')
         .insert({
-          user_id: userProfile.id,
+          user_id: session.user.id,
           calculation_type: 'personal',
           data: results,
           inputs: {
             name: analysisName || `Personal Tax - ${new Date().toLocaleDateString('en-NG')}`,
             monthlyGross,
-            additionalIncome,
+            additionalIncomes,
             annualRent,
             hasPension,
             hasNHF
@@ -142,65 +190,277 @@ export default function PersonalTax({ userProfile }) {
   const handleDownload = () => {
     if (!results) return
 
-    const breakdownText = results.breakdown && results.breakdown.length > 0
-      ? results.breakdown.map(b => `${b.band}: ${formatCurrency(b.tax)} (${b.rate}%)`).join('\n')
-      : 'No tax applicable (income below threshold)'
+    const doc = new jsPDF()
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    let yPos = 20
 
-    const content = `
-PERSONAL INCOME TAX ANALYSIS
-============================
-Generated: ${new Date().toLocaleString('en-NG')}
-${analysisName ? `Name: ${analysisName}` : ''}
+    // Colors
+    const primaryColor = [22, 163, 74] // green-600
+    const darkColor = [15, 23, 42] // slate-900
+    const lightGray = [241, 245, 249] // slate-50
 
-INPUTS
-------
-Monthly Gross Salary: ${formatCurrency(parseFloat(monthlyGross) || 0)}
-${parseFloat(additionalIncome) > 0 ? `Additional Annual Income: ${formatCurrency(parseFloat(additionalIncome) || 0)}\n` : ''}Annual Gross Income: ${formatCurrency(results.annualGross || 0)}
-Annual Rent Paid: ${formatCurrency(parseFloat(annualRent) || 0)}
-Pension Contribution: ${hasPension ? 'Yes (8%)' : 'No'}
-NHF Contribution: ${hasNHF ? 'Yes (2.5%)' : 'No'}
-
-DEDUCTIONS
-----------
-Pension (8%): ${formatCurrency(results.pension || 0)}
-NHF (2.5%): ${formatCurrency(results.nhf || 0)}
-Rent Relief (20% capped at ₦500,000): ${formatCurrency(results.rentRelief || 0)}
-Total Deductions: ${formatCurrency(results.totalDeductions || 0)}
-
-TAX CALCULATION
----------------
-Taxable Income: ${formatCurrency(results.taxableIncome || 0)}
-Gross Tax: ${formatCurrency(results.grossTax || results.netTax || 0)}
-Net Tax Payable: ${formatCurrency(results.netTax || 0)}
-Monthly Tax: ${formatCurrency(results.monthlyTax || 0)}
-Effective Tax Rate: ${(results.effectiveRate || 0).toFixed(2)}%
-
-TAX BREAKDOWN BY BAND
----------------------
-${breakdownText}
-
----
-Generated by Taxify - Nigeria Tax Support Portal
-Based on Nigeria Tax Act 2025 (effective Jan 2026)
-    `.trim()
-
-    const blob = new Blob([content], { type: 'text/plain' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `personal-tax-analysis-${Date.now()}.txt`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
+    // Header with logo and company name
+    doc.setFillColor(...primaryColor)
+    doc.rect(0, 0, pageWidth, 40, 'F')
     
-    toast.success('Report downloaded!')
+    // Logo placeholder (using text as logo)
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(24)
+    doc.setFont('helvetica', 'bold')
+    doc.text('₦', 20, 25)
+    
+    // Company name
+    doc.setFontSize(18)
+    doc.text('Taxify', 35, 25)
+    
+    // Tagline
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Nigeria Tax Support Portal', 35, 32)
+
+    yPos = 50
+
+    // Title
+    doc.setTextColor(...darkColor)
+    doc.setFontSize(20)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Personal Income Tax Analysis', pageWidth / 2, yPos, { align: 'center' })
+    
+    yPos += 10
+
+    // User name
+    const userName = userProfile?.full_name || session?.user?.email?.split('@')[0] || 'User'
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Prepared for: ${userName}`, pageWidth / 2, yPos, { align: 'center' })
+    
+    yPos += 8
+    doc.setFontSize(10)
+    doc.setTextColor(100, 100, 100)
+    doc.text(`Generated: ${new Date().toLocaleString('en-NG')}`, pageWidth / 2, yPos, { align: 'center' })
+    
+    yPos += 15
+
+    // Analysis name if provided
+    if (analysisName) {
+      doc.setFontSize(11)
+      doc.setTextColor(...darkColor)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`Analysis: ${analysisName}`, 20, yPos)
+      yPos += 8
+    }
+
+    // Income Sources Section
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...darkColor)
+    doc.text('Income Sources', 20, yPos)
+    yPos += 8
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(60, 60, 60)
+    
+    // Monthly Salary
+    const monthlySalary = parseFloat(monthlyGross) || 0
+    const annualSalary = monthlySalary * 12
+    doc.text(`Monthly Gross Salary:`, 25, yPos)
+    doc.text(formatCurrency(monthlySalary), pageWidth - 25, yPos, { align: 'right' })
+    yPos += 6
+    doc.text(`Annual Salary (×12):`, 25, yPos)
+    doc.setFont('helvetica', 'bold')
+    doc.text(formatCurrency(annualSalary), pageWidth - 25, yPos, { align: 'right' })
+    yPos += 8
+
+    // Additional Incomes
+    const additionalTotal = additionalIncomes.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
+    if (additionalTotal > 0) {
+      doc.setFont('helvetica', 'normal')
+      doc.text('Additional Income Sources:', 25, yPos)
+      yPos += 6
+      
+      additionalIncomes.forEach((income) => {
+        const amount = parseFloat(income.amount) || 0
+        if (amount > 0) {
+          const name = income.name || 'Unnamed Income'
+          doc.text(`  • ${name}:`, 30, yPos)
+          doc.text(formatCurrency(amount), pageWidth - 25, yPos, { align: 'right' })
+          yPos += 6
+        }
+      })
+      
+      doc.setFont('helvetica', 'bold')
+      doc.text('Total Additional Income:', 25, yPos)
+      doc.text(formatCurrency(additionalTotal), pageWidth - 25, yPos, { align: 'right' })
+      yPos += 8
+    }
+
+    // Total Annual Gross Income
+    doc.setDrawColor(...primaryColor)
+    doc.setLineWidth(0.5)
+    doc.line(20, yPos - 2, pageWidth - 20, yPos - 2)
+    yPos += 5
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...primaryColor)
+    doc.text('Total Annual Gross Income:', 25, yPos)
+    doc.text(formatCurrency(results.annualGross || 0), pageWidth - 25, yPos, { align: 'right' })
+    yPos += 12
+
+    // Check if new page needed
+    if (yPos > pageHeight - 80) {
+      doc.addPage()
+      yPos = 20
+    }
+
+    // Deductions Section
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...darkColor)
+    doc.text('Deductions', 20, yPos)
+    yPos += 8
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(60, 60, 60)
+
+    if (results.pension > 0) {
+      doc.text(`Pension Contribution (8%):`, 25, yPos)
+      doc.text(formatCurrency(results.pension || 0), pageWidth - 25, yPos, { align: 'right' })
+      yPos += 6
+    }
+
+    if (results.nhf > 0) {
+      doc.text(`NHF Contribution (2.5%):`, 25, yPos)
+      doc.text(formatCurrency(results.nhf || 0), pageWidth - 25, yPos, { align: 'right' })
+      yPos += 6
+    }
+
+    if (results.rentRelief > 0) {
+      doc.text(`Rent Relief (20%, max ₦500,000):`, 25, yPos)
+      doc.text(formatCurrency(results.rentRelief || 0), pageWidth - 25, yPos, { align: 'right' })
+      yPos += 6
+    }
+
+    doc.setDrawColor(...primaryColor)
+    doc.line(20, yPos, pageWidth - 20, yPos)
+    yPos += 6
+    doc.setFont('helvetica', 'bold')
+    doc.text('Total Deductions:', 25, yPos)
+    doc.text(formatCurrency(results.totalDeductions || 0), pageWidth - 25, yPos, { align: 'right' })
+    yPos += 12
+
+    // Check if new page needed
+    if (yPos > pageHeight - 100) {
+      doc.addPage()
+      yPos = 20
+    }
+
+    // Tax Calculation Section
+    doc.setFontSize(14)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...darkColor)
+    doc.text('Tax Calculation', 20, yPos)
+    yPos += 8
+
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(60, 60, 60)
+
+    doc.text(`Taxable Income:`, 25, yPos)
+    doc.setFont('helvetica', 'bold')
+    doc.text(formatCurrency(results.taxableIncome || 0), pageWidth - 25, yPos, { align: 'right' })
+    yPos += 8
+
+    // Tax Breakdown by Band
+    if (results.breakdown && results.breakdown.length > 0) {
+      doc.setFontSize(11)
+      doc.setFont('helvetica', 'bold')
+      doc.text('Tax Breakdown by Band:', 25, yPos)
+      yPos += 6
+
+      doc.setFontSize(9)
+      doc.setFont('helvetica', 'normal')
+      results.breakdown.forEach((band) => {
+        if (yPos > pageHeight - 30) {
+          doc.addPage()
+          yPos = 20
+        }
+        doc.text(`${band.band} (${band.rate}%):`, 30, yPos)
+        doc.text(formatCurrency(band.tax), pageWidth - 25, yPos, { align: 'right' })
+        yPos += 5
+      })
+      yPos += 3
+    }
+
+    // Check if new page needed
+    if (yPos > pageHeight - 60) {
+      doc.addPage()
+      yPos = 20
+    }
+
+    // Summary Box
+    doc.setFillColor(...lightGray)
+    doc.roundedRect(20, yPos, pageWidth - 40, 35, 3, 3, 'F')
+    
+    yPos += 8
+    doc.setFontSize(11)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...darkColor)
+    doc.text('Summary', 25, yPos)
+    
+    yPos += 8
+    doc.setFontSize(10)
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Annual Tax Payable:`, 25, yPos)
+    doc.setFont('helvetica', 'bold')
+    doc.setTextColor(...primaryColor)
+    doc.text(formatCurrency(results.netTax || 0), pageWidth - 25, yPos, { align: 'right' })
+    
+    yPos += 6
+    doc.setFont('helvetica', 'normal')
+    doc.setTextColor(60, 60, 60)
+    doc.text(`Monthly Tax:`, 25, yPos)
+    doc.setFont('helvetica', 'bold')
+    doc.text(formatCurrency(results.monthlyTax || 0), pageWidth - 25, yPos, { align: 'right' })
+    
+    yPos += 6
+    doc.setFont('helvetica', 'normal')
+    doc.text(`Effective Tax Rate:`, 25, yPos)
+    doc.setFont('helvetica', 'bold')
+    doc.text(`${(results.effectiveRate || 0).toFixed(2)}%`, pageWidth - 25, yPos, { align: 'right' })
+
+    yPos += 20
+
+    // Footer
+    if (yPos > pageHeight - 30) {
+      doc.addPage()
+      yPos = 20
+    }
+
+    doc.setDrawColor(200, 200, 200)
+    doc.line(20, yPos, pageWidth - 20, yPos)
+    yPos += 8
+
+    doc.setFontSize(8)
+    doc.setTextColor(100, 100, 100)
+    doc.setFont('helvetica', 'italic')
+    doc.text('Generated by Taxify - Nigeria Tax Support Portal', pageWidth / 2, yPos, { align: 'center' })
+    yPos += 4
+    doc.text('Based on Nigeria Tax Act 2025 (effective Jan 2026)', pageWidth / 2, yPos, { align: 'center' })
+
+    // Save PDF
+    const fileName = `personal-tax-analysis-${userName.replace(/\s+/g, '-')}-${Date.now()}.pdf`
+    doc.save(fileName)
+    
+    toast.success('PDF report downloaded!')
   }
 
   const resetForm = () => {
     setResults(null)
     setMonthlyGross(userProfile?.monthly_salary?.toString() || '')
-    setAdditionalIncome('')
+    setAdditionalIncomes([{ name: '', amount: '' }])
     setAnnualRent('')
     setHasPension(true)
     setHasNHF(true)
@@ -254,19 +514,57 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
             </div>
 
             <div>
-              <label htmlFor="additionalIncome" className="block text-sm font-medium text-slate-700 mb-1">
-                Additional Annual Income (₦)
-              </label>
-              <input
-                id="additionalIncome"
-                type="number"
-                value={additionalIncome}
-                onChange={(e) => setAdditionalIncome(e.target.value)}
-                className="input-field"
-                placeholder="e.g., 500000"
-              />
-              <p className="text-xs text-slate-500 mt-1">
-                Add any other annual income sources (e.g., freelance, rental income, dividends, etc.)
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-slate-700">
+                  Additional Income Sources
+                </label>
+                <button
+                  type="button"
+                  onClick={addAdditionalIncome}
+                  className="text-xs text-green-600 hover:text-green-700 font-medium flex items-center"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add Income
+                </button>
+              </div>
+              
+              <div className="space-y-3">
+                {additionalIncomes.map((income, index) => (
+                  <div key={index} className="flex gap-2 items-start">
+                    <div className="flex-1">
+                      <input
+                        type="text"
+                        value={income.name}
+                        onChange={(e) => updateAdditionalIncome(index, 'name', e.target.value)}
+                        className="input-field mb-2"
+                        placeholder="Income source (e.g., Freelance, Rental)"
+                      />
+                      <input
+                        type="number"
+                        value={income.amount}
+                        onChange={(e) => updateAdditionalIncome(index, 'amount', e.target.value)}
+                        className="input-field"
+                        placeholder="Annual amount (₦)"
+                      />
+                    </div>
+                    {additionalIncomes.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeAdditionalIncome(index)}
+                        className="mt-8 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-slate-500 mt-2">
+                Add other annual income sources (freelance, rental, dividends, etc.)
               </p>
             </div>
 
@@ -352,13 +650,29 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
                   <span className="text-slate-600">Annual Salary (Monthly × 12)</span>
                   <span className="font-semibold">{formatCurrency((parseFloat(monthlyGross) || 0) * 12)}</span>
                 </div>
-                {(parseFloat(additionalIncome) || 0) > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-600">Additional Income</span>
-                    <span className="font-semibold">{formatCurrency(parseFloat(additionalIncome) || 0)}</span>
-                  </div>
+                {additionalIncomes.some(item => parseFloat(item.amount) > 0) && (
+                  <>
+                    {additionalIncomes.map((income, index) => {
+                      const amount = parseFloat(income.amount) || 0
+                      if (amount <= 0) return null
+                      return (
+                        <div key={index} className="flex justify-between text-sm">
+                          <span className="text-slate-600">
+                            {income.name || 'Additional Income'}:
+                          </span>
+                          <span className="font-semibold">{formatCurrency(amount)}</span>
+                        </div>
+                      )
+                    })}
+                    <div className="flex justify-between text-sm border-t border-slate-200 pt-1 mt-1">
+                      <span className="text-slate-600 font-medium">Total Additional Income:</span>
+                      <span className="font-semibold">
+                        {formatCurrency(additionalIncomes.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0))}
+                      </span>
+                    </div>
+                  </>
                 )}
-                <div className="flex justify-between text-sm border-t border-slate-200 pt-2">
+                <div className="flex justify-between text-sm border-t border-slate-200 pt-2 mt-2">
                   <span className="text-slate-700 font-medium">Annual Gross Income</span>
                   <span className="font-bold">{formatCurrency(results.annualGross)}</span>
                 </div>

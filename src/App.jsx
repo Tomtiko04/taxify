@@ -16,6 +16,7 @@ import Navbar from './components/Navbar'
 import ChatbotSignup from './components/ChatbotSignup'
 import ScrollToTop from './components/ScrollToTop'
 import DashboardLayout from './components/DashboardLayout'
+import ProtectedRoute from './components/ProtectedRoute'
 import Overview from './pages/dashboard/Overview'
 import PersonalTax from './pages/dashboard/PersonalTax'
 import BusinessTax from './pages/dashboard/BusinessTax'
@@ -189,14 +190,6 @@ function App() {
   // Handle profile updates from Profile page
   const handleProfileUpdate = (updatedProfile) => {
     setUserProfile(updatedProfile)
-  }
-
-  // Protected route wrapper
-  const ProtectedRoute = ({ children }) => {
-    if (!session) {
-      return <Navigate to="/login" replace />
-    }
-    return children
   }
 
   return (
