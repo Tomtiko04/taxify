@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
 import { calculatePAYE, formatCurrency } from '../../utils/taxCalculations'
 import { supabase } from '../../lib/supabase'
 import { savePersonalCalculationData, getPersonalCalculationData, saveReturnUrl } from '../../utils/storage'
@@ -17,12 +18,11 @@ export default function PersonalTax({ userProfile }) {
   const [results, setResults] = useState(null)
   const [saving, setSaving] = useState(false)
   const [session, setSession] = useState(null)
+  const [showTaxInfo, setShowTaxInfo] = useState(false)
   const isMounted = useRef(true)
 
-  // Check session on mount
   useEffect(() => {
     isMounted.current = true
-    
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error?.name === 'AbortError' || !isMounted.current) return
       setSession(session)
@@ -47,16 +47,7 @@ export default function PersonalTax({ userProfile }) {
   }, [])
 
   useEffect(() => {
-    isMounted.current = true
-    return () => {
-      isMounted.current = false
-    }
-  }, [])
-
-  // Restore calculation data after signup/login
-  useEffect(() => {
     if (!isMounted.current) return
-    
     if (session?.user && results === null) {
       const savedData = getPersonalCalculationData()
       if (savedData) {
@@ -67,47 +58,41 @@ export default function PersonalTax({ userProfile }) {
         setHasNHF(savedData.hasNHF !== undefined ? savedData.hasNHF : true)
         setAnalysisName(savedData.analysisName || '')
         
-        // Recalculate if we have the inputs
         if (savedData.monthlyGross) {
           const monthlyValue = parseFloat(savedData.monthlyGross) || 0
           const additionalTotal = (savedData.additionalIncomes || []).reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
           const rentValue = parseFloat(savedData.annualRent) || 0
           if (monthlyValue > 0 || additionalTotal > 0) {
             const calculation = calculatePAYE(
-              monthlyValue, 
-              rentValue, 
+              monthlyValue, rentValue,
               savedData.hasPension !== undefined ? savedData.hasPension : true,
               savedData.hasNHF !== undefined ? savedData.hasNHF : true,
               additionalTotal
             )
             if (isMounted.current) {
               setResults(calculation)
-              toast.success('Your calculation has been restored! You can now save it.')
+              toast.success('Your calculation has been restored!')
             }
           }
         }
       }
     }
-  }, [session, userProfile])
+  }, [session, userProfile, results])
 
   const handleCalculate = (e) => {
     e.preventDefault()
-    
     const monthlyValue = parseFloat(monthlyGross) || 0
-    const additionalTotal = additionalIncomes.reduce((sum, item) => {
-      const amount = parseFloat(item.amount) || 0
-      return sum + amount
-    }, 0)
+    const additionalTotal = additionalIncomes.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
     const rentValue = parseFloat(annualRent) || 0
 
     if (monthlyValue <= 0 && additionalTotal <= 0) {
-      toast.error('Please enter at least your monthly salary or add additional income')
+      toast.error('Please enter your monthly salary')
       return
     }
 
     const calculation = calculatePAYE(monthlyValue, rentValue, hasPension, hasNHF, additionalTotal)
     setResults(calculation)
-    toast.success('Tax calculated successfully!')
+    toast.success('Tax calculated!')
   }
 
   const addAdditionalIncome = () => {
@@ -132,24 +117,14 @@ export default function PersonalTax({ userProfile }) {
       return
     }
 
-    // Check session instead of userProfile - this is a protected route so session should exist
     if (!session?.user) {
-      const calcData = {
-        monthlyGross,
-        additionalIncomes,
-        annualRent,
-        hasPension,
-        hasNHF,
-        analysisName,
-        results
-      }
-      
+      const calcData = { monthlyGross, additionalIncomes, annualRent, hasPension, hasNHF, analysisName, results }
       if (savePersonalCalculationData(calcData)) {
         saveReturnUrl('/dashboard/personal')
         toast.loading('Redirecting to signup...', { id: 'signup-redirect' })
         navigate('/signup?return=personal')
       } else {
-        toast.error('Failed to save your calculation. Please try again.')
+        toast.error('Failed to save. Please try again.')
       }
       return
     }
@@ -164,24 +139,17 @@ export default function PersonalTax({ userProfile }) {
           data: results,
           inputs: {
             name: analysisName || `Personal Tax - ${new Date().toLocaleDateString('en-NG')}`,
-            monthlyGross,
-            additionalIncomes,
-            annualRent,
-            hasPension,
-            hasNHF
+            monthlyGross, additionalIncomes, annualRent, hasPension, hasNHF
           }
         })
 
       if (error) throw error
-
-      // Clear any stored calculation data after successful save
       getPersonalCalculationData()
-      
-      toast.success('Analysis saved successfully!')
+      toast.success('Analysis saved!')
       navigate('/dashboard/history')
     } catch (error) {
       console.error('Save error:', error)
-      toast.error('Failed to save analysis')
+      toast.error('Failed to save')
     } finally {
       setSaving(false)
     }
@@ -195,41 +163,29 @@ export default function PersonalTax({ userProfile }) {
     const pageHeight = doc.internal.pageSize.getHeight()
     let yPos = 20
 
-    // Colors
-    const primaryColor = [22, 163, 74] // green-600
-    const darkColor = [15, 23, 42] // slate-900
-    const lightGray = [241, 245, 249] // slate-50
+    const primaryColor = [22, 163, 74]
+    const darkColor = [15, 23, 42]
+    const lightGray = [241, 245, 249]
 
-    // Header with logo and company name
     doc.setFillColor(...primaryColor)
     doc.rect(0, 0, pageWidth, 40, 'F')
-    
-    // Logo placeholder (using text as logo)
     doc.setTextColor(255, 255, 255)
     doc.setFontSize(24)
     doc.setFont('helvetica', 'bold')
     doc.text('₦', 20, 25)
-    
-    // Company name
     doc.setFontSize(18)
     doc.text('Taxify', 35, 25)
-    
-    // Tagline
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
     doc.text('Nigeria Tax Support Portal', 35, 32)
 
     yPos = 50
-
-    // Title
     doc.setTextColor(...darkColor)
     doc.setFontSize(20)
     doc.setFont('helvetica', 'bold')
     doc.text('Personal Income Tax Analysis', pageWidth / 2, yPos, { align: 'center' })
     
     yPos += 10
-
-    // User name
     const userName = userProfile?.full_name || session?.user?.email?.split('@')[0] || 'User'
     doc.setFontSize(12)
     doc.setFont('helvetica', 'normal')
@@ -241,8 +197,6 @@ export default function PersonalTax({ userProfile }) {
     doc.text(`Generated: ${new Date().toLocaleString('en-NG')}`, pageWidth / 2, yPos, { align: 'center' })
     
     yPos += 15
-
-    // Analysis name if provided
     if (analysisName) {
       doc.setFontSize(11)
       doc.setTextColor(...darkColor)
@@ -251,7 +205,6 @@ export default function PersonalTax({ userProfile }) {
       yPos += 8
     }
 
-    // Income Sources Section
     doc.setFontSize(14)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(...darkColor)
@@ -262,7 +215,6 @@ export default function PersonalTax({ userProfile }) {
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(60, 60, 60)
     
-    // Monthly Salary
     const monthlySalary = parseFloat(monthlyGross) || 0
     const annualSalary = monthlySalary * 12
     doc.text(`Monthly Gross Salary:`, 25, yPos)
@@ -273,48 +225,34 @@ export default function PersonalTax({ userProfile }) {
     doc.text(formatCurrency(annualSalary), pageWidth - 25, yPos, { align: 'right' })
     yPos += 8
 
-    // Additional Incomes
     const additionalTotal = additionalIncomes.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
     if (additionalTotal > 0) {
       doc.setFont('helvetica', 'normal')
       doc.text('Additional Income Sources:', 25, yPos)
       yPos += 6
-      
       additionalIncomes.forEach((income) => {
         const amount = parseFloat(income.amount) || 0
         if (amount > 0) {
-          const name = income.name || 'Unnamed Income'
-          doc.text(`  • ${name}:`, 30, yPos)
+          doc.text(`  • ${income.name || 'Unnamed'}:`, 30, yPos)
           doc.text(formatCurrency(amount), pageWidth - 25, yPos, { align: 'right' })
           yPos += 6
         }
       })
-      
-      doc.setFont('helvetica', 'bold')
-      doc.text('Total Additional Income:', 25, yPos)
-      doc.text(formatCurrency(additionalTotal), pageWidth - 25, yPos, { align: 'right' })
-      yPos += 8
     }
 
-    // Total Annual Gross Income
     doc.setDrawColor(...primaryColor)
     doc.setLineWidth(0.5)
-    doc.line(20, yPos - 2, pageWidth - 20, yPos - 2)
-    yPos += 5
+    doc.line(20, yPos, pageWidth - 20, yPos)
+    yPos += 8
     doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(...primaryColor)
-    doc.text('Total Annual Gross Income:', 25, yPos)
+    doc.text('Total Annual Gross:', 25, yPos)
     doc.text(formatCurrency(results.annualGross || 0), pageWidth - 25, yPos, { align: 'right' })
     yPos += 12
 
-    // Check if new page needed
-    if (yPos > pageHeight - 80) {
-      doc.addPage()
-      yPos = 20
-    }
+    if (yPos > pageHeight - 80) { doc.addPage(); yPos = 20 }
 
-    // Deductions Section
     doc.setFontSize(14)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(...darkColor)
@@ -326,24 +264,21 @@ export default function PersonalTax({ userProfile }) {
     doc.setTextColor(60, 60, 60)
 
     if (results.pension > 0) {
-      doc.text(`Pension Contribution (8%):`, 25, yPos)
-      doc.text(formatCurrency(results.pension || 0), pageWidth - 25, yPos, { align: 'right' })
+      doc.text(`Pension (8%):`, 25, yPos)
+      doc.text(formatCurrency(results.pension), pageWidth - 25, yPos, { align: 'right' })
       yPos += 6
     }
-
     if (results.nhf > 0) {
-      doc.text(`NHF Contribution (2.5%):`, 25, yPos)
-      doc.text(formatCurrency(results.nhf || 0), pageWidth - 25, yPos, { align: 'right' })
+      doc.text(`NHF (2.5%):`, 25, yPos)
+      doc.text(formatCurrency(results.nhf), pageWidth - 25, yPos, { align: 'right' })
       yPos += 6
     }
-
     if (results.rentRelief > 0) {
-      doc.text(`Rent Relief (20%, max ₦500,000):`, 25, yPos)
-      doc.text(formatCurrency(results.rentRelief || 0), pageWidth - 25, yPos, { align: 'right' })
+      doc.text(`Rent Relief:`, 25, yPos)
+      doc.text(formatCurrency(results.rentRelief), pageWidth - 25, yPos, { align: 'right' })
       yPos += 6
     }
 
-    doc.setDrawColor(...primaryColor)
     doc.line(20, yPos, pageWidth - 20, yPos)
     yPos += 6
     doc.setFont('helvetica', 'bold')
@@ -351,13 +286,8 @@ export default function PersonalTax({ userProfile }) {
     doc.text(formatCurrency(results.totalDeductions || 0), pageWidth - 25, yPos, { align: 'right' })
     yPos += 12
 
-    // Check if new page needed
-    if (yPos > pageHeight - 100) {
-      doc.addPage()
-      yPos = 20
-    }
+    if (yPos > pageHeight - 100) { doc.addPage(); yPos = 20 }
 
-    // Tax Calculation Section
     doc.setFontSize(14)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(...darkColor)
@@ -367,94 +297,57 @@ export default function PersonalTax({ userProfile }) {
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
     doc.setTextColor(60, 60, 60)
-
     doc.text(`Taxable Income:`, 25, yPos)
     doc.setFont('helvetica', 'bold')
     doc.text(formatCurrency(results.taxableIncome || 0), pageWidth - 25, yPos, { align: 'right' })
-    yPos += 8
+    yPos += 10
 
-    // Tax Breakdown by Band
-    if (results.breakdown && results.breakdown.length > 0) {
-      doc.setFontSize(11)
-      doc.setFont('helvetica', 'bold')
-      doc.text('Tax Breakdown by Band:', 25, yPos)
-      yPos += 6
-
+    if (results.breakdown?.length > 0) {
       doc.setFontSize(9)
       doc.setFont('helvetica', 'normal')
       results.breakdown.forEach((band) => {
-        if (yPos > pageHeight - 30) {
-          doc.addPage()
-          yPos = 20
-        }
+        if (yPos > pageHeight - 30) { doc.addPage(); yPos = 20 }
         doc.text(`${band.band} (${band.rate}%):`, 30, yPos)
         doc.text(formatCurrency(band.tax), pageWidth - 25, yPos, { align: 'right' })
         yPos += 5
       })
-      yPos += 3
+      yPos += 5
     }
 
-    // Check if new page needed
-    if (yPos > pageHeight - 60) {
-      doc.addPage()
-      yPos = 20
-    }
+    if (yPos > pageHeight - 60) { doc.addPage(); yPos = 20 }
 
-    // Summary Box
     doc.setFillColor(...lightGray)
-    doc.roundedRect(20, yPos, pageWidth - 40, 35, 3, 3, 'F')
-    
+    doc.roundedRect(20, yPos, pageWidth - 40, 32, 3, 3, 'F')
     yPos += 8
     doc.setFontSize(11)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(...darkColor)
     doc.text('Summary', 25, yPos)
-    
-    yPos += 8
+    yPos += 7
     doc.setFontSize(10)
     doc.setFont('helvetica', 'normal')
-    doc.text(`Annual Tax Payable:`, 25, yPos)
+    doc.text(`Annual Tax:`, 25, yPos)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(...primaryColor)
     doc.text(formatCurrency(results.netTax || 0), pageWidth - 25, yPos, { align: 'right' })
-    
     yPos += 6
-    doc.setFont('helvetica', 'normal')
     doc.setTextColor(60, 60, 60)
+    doc.setFont('helvetica', 'normal')
     doc.text(`Monthly Tax:`, 25, yPos)
     doc.setFont('helvetica', 'bold')
     doc.text(formatCurrency(results.monthlyTax || 0), pageWidth - 25, yPos, { align: 'right' })
-    
-    yPos += 6
-    doc.setFont('helvetica', 'normal')
-    doc.text(`Effective Tax Rate:`, 25, yPos)
-    doc.setFont('helvetica', 'bold')
-    doc.text(`${(results.effectiveRate || 0).toFixed(2)}%`, pageWidth - 25, yPos, { align: 'right' })
 
     yPos += 20
-
-    // Footer
-    if (yPos > pageHeight - 30) {
-      doc.addPage()
-      yPos = 20
-    }
-
     doc.setDrawColor(200, 200, 200)
     doc.line(20, yPos, pageWidth - 20, yPos)
     yPos += 8
-
     doc.setFontSize(8)
     doc.setTextColor(100, 100, 100)
     doc.setFont('helvetica', 'italic')
-    doc.text('Generated by Taxify - Nigeria Tax Support Portal', pageWidth / 2, yPos, { align: 'center' })
-    yPos += 4
-    doc.text('Based on Nigeria Tax Act 2025 (effective Jan 2026)', pageWidth / 2, yPos, { align: 'center' })
+    doc.text('Generated by Taxify - Based on Nigeria Tax Act 2025', pageWidth / 2, yPos, { align: 'center' })
 
-    // Save PDF
-    const fileName = `personal-tax-analysis-${userName.replace(/\s+/g, '-')}-${Date.now()}.pdf`
-    doc.save(fileName)
-    
-    toast.success('PDF report downloaded!')
+    doc.save(`tax-report-${userName.replace(/\s+/g, '-')}-${Date.now()}.pdf`)
+    toast.success('PDF downloaded!')
   }
 
   const resetForm = () => {
@@ -467,373 +360,378 @@ export default function PersonalTax({ userProfile }) {
     setAnalysisName('')
   }
 
+  const taxBands = [
+    { range: '₦0 - ₦800,000', rate: 0, color: 'bg-green-500' },
+    { range: '₦800K - ₦3M', rate: 15, color: 'bg-blue-500' },
+    { range: '₦3M - ₦12M', rate: 18, color: 'bg-indigo-500' },
+    { range: '₦12M - ₦25M', rate: 21, color: 'bg-purple-500' },
+    { range: '₦25M - ₦50M', rate: 23, color: 'bg-orange-500' },
+    { range: 'Above ₦50M', rate: 25, color: 'bg-red-500' }
+  ]
+
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="max-w-5xl mx-auto space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Personal Income Tax Calculator</h1>
-        <p className="text-slate-600 mt-1">Calculate your PAYE tax based on Nigeria Tax Act 2025</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Personal Tax Calculator</h1>
+          <p className="text-slate-600">Calculate your 2026 income tax based on Nigeria Tax Act</p>
+        </div>
+        <button
+          onClick={() => setShowTaxInfo(!showTaxInfo)}
+          className="inline-flex items-center px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition-colors text-sm font-medium"
+        >
+          <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {showTaxInfo ? 'Hide' : 'View'} Tax Bands
+        </button>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-8">
-        {/* Input Form */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-6">Enter Your Details</h2>
-          
-          <form onSubmit={handleCalculate} className="space-y-5">
-            <div>
-              <label htmlFor="analysisName" className="block text-sm font-medium text-slate-700 mb-1">
-                Analysis Name (Optional)
-              </label>
-              <input
-                id="analysisName"
-                type="text"
-                value={analysisName}
-                onChange={(e) => setAnalysisName(e.target.value)}
-                className="input-field"
-                placeholder="e.g., January 2026 Salary"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="monthlyGross" className="block text-sm font-medium text-slate-700 mb-1">
-                Monthly Gross Salary (₦) *
-              </label>
-              <input
-                id="monthlyGross"
-                type="number"
-                required
-                value={monthlyGross}
-                onChange={(e) => setMonthlyGross(e.target.value)}
-                className="input-field"
-                placeholder="e.g., 500000"
-              />
-              <p className="text-xs text-slate-500 mt-1">
-                Enter your monthly salary. We'll calculate your annual tax based on this amount.
-              </p>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-slate-700">
-                  Additional Income Sources
-                </label>
-                <button
-                  type="button"
-                  onClick={addAdditionalIncome}
-                  className="text-xs text-green-600 hover:text-green-700 font-medium flex items-center"
-                >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Add Income
-                </button>
-              </div>
+      {/* Tax Bands Info Panel */}
+      <AnimatePresence>
+        {showTaxInfo && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+              <h3 className="font-semibold text-slate-900 mb-4">2026 Personal Income Tax Bands</h3>
               
-              <div className="space-y-3">
-                {additionalIncomes.map((income, index) => (
-                  <div key={index} className="flex gap-2 items-start">
-                    <div className="flex-1">
-                      <input
-                        type="text"
-                        value={income.name}
-                        onChange={(e) => updateAdditionalIncome(index, 'name', e.target.value)}
-                        className="input-field mb-2"
-                        placeholder="Income source (e.g., Freelance, Rental)"
-                      />
-                      <input
-                        type="number"
-                        value={income.amount}
-                        onChange={(e) => updateAdditionalIncome(index, 'amount', e.target.value)}
-                        className="input-field"
-                        placeholder="Annual amount (₦)"
-                      />
-                    </div>
-                    {additionalIncomes.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeAdditionalIncome(index)}
-                        className="mt-8 p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
+              {/* Visual Bar */}
+              <div className="h-4 rounded-full overflow-hidden flex mb-6">
+                {taxBands.map((band, i) => (
+                  <div key={i} className={`${band.color} flex-1`} />
                 ))}
               </div>
-              <p className="text-xs text-slate-500 mt-2">
-                Add other annual income sources (freelance, rental, dividends, etc.)
-              </p>
-            </div>
 
-            <div>
-              <label htmlFor="annualRent" className="block text-sm font-medium text-slate-700 mb-1">
-                Annual Rent Paid (₦)
-              </label>
-              <input
-                id="annualRent"
-                type="number"
-                value={annualRent}
-                onChange={(e) => setAnnualRent(e.target.value)}
-                className="input-field"
-                placeholder="e.g., 1200000"
-              />
-              <p className="text-xs text-slate-500 mt-1">20% of rent is tax-deductible (max ₦500,000)</p>
-            </div>
+              {/* Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200">
+                      <th className="text-left py-3 font-semibold text-slate-700">Income Range</th>
+                      <th className="text-center py-3 font-semibold text-slate-700">Tax Rate</th>
+                      <th className="text-left py-3 font-semibold text-slate-700">Description</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    <tr>
+                      <td className="py-3 flex items-center"><span className="w-3 h-3 rounded-full bg-green-500 mr-2"></span>₦0 - ₦800,000</td>
+                      <td className="py-3 text-center font-bold text-green-600">0%</td>
+                      <td className="py-3 text-slate-600">Tax-free threshold</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 flex items-center"><span className="w-3 h-3 rounded-full bg-blue-500 mr-2"></span>₦800,001 - ₦3,000,000</td>
+                      <td className="py-3 text-center font-bold text-blue-600">15%</td>
+                      <td className="py-3 text-slate-600">Lower-middle income</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 flex items-center"><span className="w-3 h-3 rounded-full bg-indigo-500 mr-2"></span>₦3,000,001 - ₦12,000,000</td>
+                      <td className="py-3 text-center font-bold text-indigo-600">18%</td>
+                      <td className="py-3 text-slate-600">Middle income</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 flex items-center"><span className="w-3 h-3 rounded-full bg-purple-500 mr-2"></span>₦12,000,001 - ₦25,000,000</td>
+                      <td className="py-3 text-center font-bold text-purple-600">21%</td>
+                      <td className="py-3 text-slate-600">Upper-middle income</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 flex items-center"><span className="w-3 h-3 rounded-full bg-orange-500 mr-2"></span>₦25,000,001 - ₦50,000,000</td>
+                      <td className="py-3 text-center font-bold text-orange-600">23%</td>
+                      <td className="py-3 text-slate-600">High income</td>
+                    </tr>
+                    <tr>
+                      <td className="py-3 flex items-center"><span className="w-3 h-3 rounded-full bg-red-500 mr-2"></span>Above ₦50,000,000</td>
+                      <td className="py-3 text-center font-bold text-red-600">25%</td>
+                      <td className="py-3 text-slate-600">Top earners</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
 
-            <div className="space-y-4 p-4 bg-slate-50 rounded-lg">
-              <p className="text-xs font-medium text-slate-600 mb-3">Deductions (reduce your taxable income)</p>
-              
-              <label className="flex items-start space-x-3 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={hasPension}
-                  onChange={(e) => setHasPension(e.target.checked)}
-                  className="w-4 h-4 text-green-600 rounded focus:ring-green-500 mt-0.5"
-                />
-                <div className="flex-1">
-                  <span className="text-sm font-medium text-slate-700 block">Pension Contribution (8%)</span>
-                  <span className="text-xs text-slate-500">
-                    If you contribute to a pension fund, 8% of your annual income is deducted from your taxable income, reducing your tax.
-                  </span>
-                </div>
-              </label>
-
-              <label className="flex items-start space-x-3 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={hasNHF}
-                  onChange={(e) => setHasNHF(e.target.checked)}
-                  className="w-4 h-4 text-green-600 rounded focus:ring-green-500 mt-0.5"
-                />
-                <div className="flex-1">
-                  <span className="text-sm font-medium text-slate-700 block">NHF Contribution (2.5%)</span>
-                  <span className="text-xs text-slate-500">
-                    If you contribute to the National Housing Fund, 2.5% of your annual income is deducted from your taxable income, reducing your tax.
-                  </span>
-                </div>
-              </label>
-            </div>
-
-            <button type="submit" className="w-full btn-primary">
-              Calculate Tax
-            </button>
-          </form>
-        </div>
-
-        {/* Results */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-          <h2 className="text-lg font-semibold text-slate-900 mb-6">Tax Breakdown</h2>
-
-          {results ? (
-            <div className="space-y-5">
-              {/* Tax Exempt Check */}
-              {results.annualGross <= 800000 && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                  <div className="flex items-center space-x-2 text-green-800">
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    <span className="font-semibold">Tax Exempt!</span>
+              {/* Deductions Info */}
+              <div className="mt-6 pt-6 border-t border-slate-200">
+                <h4 className="font-semibold text-slate-900 mb-3">Allowable Deductions</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-green-50 rounded-lg p-3 text-center">
+                    <div className="text-lg font-bold text-green-600">8%</div>
+                    <div className="text-xs text-green-700">Pension</div>
                   </div>
-                  <p className="text-sm text-green-700 mt-1">
-                    Your annual income is below ₦800,000, so you pay 0% tax.
-                  </p>
-                </div>
-              )}
-
-              {/* Summary */}
-              <div className="bg-slate-50 rounded-lg p-4 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Annual Salary (Monthly × 12)</span>
-                  <span className="font-semibold">{formatCurrency((parseFloat(monthlyGross) || 0) * 12)}</span>
-                </div>
-                {additionalIncomes.some(item => parseFloat(item.amount) > 0) && (
-                  <>
-                    {additionalIncomes.map((income, index) => {
-                      const amount = parseFloat(income.amount) || 0
-                      if (amount <= 0) return null
-                      return (
-                        <div key={index} className="flex justify-between text-sm">
-                          <span className="text-slate-600">
-                            {income.name || 'Additional Income'}:
-                          </span>
-                          <span className="font-semibold">{formatCurrency(amount)}</span>
-                        </div>
-                      )
-                    })}
-                    <div className="flex justify-between text-sm border-t border-slate-200 pt-1 mt-1">
-                      <span className="text-slate-600 font-medium">Total Additional Income:</span>
-                      <span className="font-semibold">
-                        {formatCurrency(additionalIncomes.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0))}
-                      </span>
-                    </div>
-                  </>
-                )}
-                <div className="flex justify-between text-sm border-t border-slate-200 pt-2 mt-2">
-                  <span className="text-slate-700 font-medium">Annual Gross Income</span>
-                  <span className="font-bold">{formatCurrency(results.annualGross)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Total Deductions</span>
-                  <span className="font-semibold text-green-600">
-                    -{formatCurrency(results.totalDeductions || 0)}
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm border-t border-slate-200 pt-2">
-                  <span className="text-slate-800 font-medium">Taxable Income</span>
-                  <span className="font-bold">{formatCurrency(results.taxableIncome)}</span>
+                  <div className="bg-green-50 rounded-lg p-3 text-center">
+                    <div className="text-lg font-bold text-green-600">2.5%</div>
+                    <div className="text-xs text-green-700">NHF</div>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-3 text-center">
+                    <div className="text-lg font-bold text-green-600">20%</div>
+                    <div className="text-xs text-green-700">Rent (max ₦500K)</div>
+                  </div>
                 </div>
               </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-              {/* Deductions Breakdown */}
-              <div className="bg-green-50 rounded-lg p-4">
-                <h3 className="font-medium text-slate-900 mb-3">Deductions Breakdown</h3>
-                <p className="text-xs text-slate-600 mb-3">These amounts reduce your taxable income:</p>
-                <div className="space-y-3 text-sm">
-                  {(results.pension || 0) > 0 && (
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="text-slate-700 font-medium block">Pension Contribution</span>
-                        <span className="text-xs text-slate-500">8% of annual income</span>
-                      </div>
-                      <span className="font-semibold text-green-700">{formatCurrency(results.pension || 0)}</span>
-                    </div>
-                  )}
-                  {(results.nhf || 0) > 0 && (
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="text-slate-700 font-medium block">NHF Contribution</span>
-                        <span className="text-xs text-slate-500">2.5% of annual income</span>
-                      </div>
-                      <span className="font-semibold text-green-700">{formatCurrency(results.nhf || 0)}</span>
-                    </div>
-                  )}
-                  {(results.rentRelief || 0) > 0 && (
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="text-slate-700 font-medium block">Rent Relief</span>
-                        <span className="text-xs text-slate-500">20% of annual rent (max ₦500,000)</span>
-                      </div>
-                      <span className="font-semibold text-green-700">{formatCurrency(results.rentRelief || 0)}</span>
-                    </div>
-                  )}
-                  {((results.pension || 0) === 0 && (results.nhf || 0) === 0 && (results.rentRelief || 0) === 0) && (
-                    <p className="text-xs text-slate-500 italic">No deductions applied</p>
-                  )}
+      <div className="grid lg:grid-cols-5 gap-6">
+        {/* Calculator Form */}
+        <div className="lg:col-span-3">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="p-6">
+              <h2 className="text-lg font-semibold text-slate-900 mb-6 flex items-center">
+                <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                  <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
                 </div>
-              </div>
+                Income Details
+              </h2>
 
-              {/* Tax by Band */}
-              {results.breakdown && results.breakdown.length > 0 && (
-                <div className="bg-blue-50 rounded-lg p-4">
-                  <h3 className="font-medium text-slate-900 mb-2">Tax Calculation by Income Band</h3>
-                  <p className="text-xs text-slate-600 mb-3">Your income is taxed at different rates:</p>
-                  <div className="space-y-2 text-sm">
-                    {results.breakdown.map((band, idx) => (
-                      <div key={idx} className="flex justify-between items-center py-1.5 border-b border-blue-100 last:border-0">
-                        <div className="flex-1">
-                          <span className="text-slate-700 font-medium block">{band.band}</span>
-                          <span className="text-xs text-slate-500">
-                            {band.amount > 0 ? `${formatCurrency(band.amount)} × ${band.rate}%` : 'Exempt'}
-                          </span>
+              <form onSubmit={handleCalculate} className="space-y-5">
+                {/* Analysis Name */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Analysis Name <span className="text-slate-400 font-normal">(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={analysisName}
+                    onChange={(e) => setAnalysisName(e.target.value)}
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-500/20 focus:outline-none"
+                    placeholder="e.g., January 2026 Salary"
+                  />
+                </div>
+
+                {/* Monthly Salary */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Monthly Gross Salary <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">₦</span>
+                    <input
+                      type="number"
+                      value={monthlyGross}
+                      onChange={(e) => setMonthlyGross(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 text-lg font-semibold border border-slate-200 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-500/20 focus:outline-none"
+                      placeholder="500,000"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Deductions */}
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <h3 className="font-medium text-slate-900 mb-3">Tax-Saving Contributions</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      hasPension ? 'border-green-500 bg-green-50' : 'border-slate-200 bg-white'
+                    }`}>
+                      <input
+                        type="checkbox"
+                        checked={hasPension}
+                        onChange={(e) => setHasPension(e.target.checked)}
+                        className="sr-only"
+                      />
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center mr-3 ${
+                        hasPension ? 'bg-green-500 border-green-500' : 'border-slate-300'
+                      }`}>
+                        {hasPension && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                      </div>
+                      <div>
+                        <span className="font-medium text-slate-900 text-sm">Pension (8%)</span>
+                      </div>
+                    </label>
+
+                    <label className={`flex items-center p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      hasNHF ? 'border-green-500 bg-green-50' : 'border-slate-200 bg-white'
+                    }`}>
+                      <input
+                        type="checkbox"
+                        checked={hasNHF}
+                        onChange={(e) => setHasNHF(e.target.checked)}
+                        className="sr-only"
+                      />
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center mr-3 ${
+                        hasNHF ? 'bg-green-500 border-green-500' : 'border-slate-300'
+                      }`}>
+                        {hasNHF && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                      </div>
+                      <div>
+                        <span className="font-medium text-slate-900 text-sm">NHF (2.5%)</span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Annual Rent */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                    Annual Rent Paid <span className="text-slate-400 font-normal">(optional)</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">₦</span>
+                    <input
+                      type="number"
+                      value={annualRent}
+                      onChange={(e) => setAnnualRent(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-500/20 focus:outline-none"
+                      placeholder="1,200,000"
+                    />
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">20% is deductible (max ₦500,000)</p>
+                </div>
+
+                {/* Additional Income */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-sm font-medium text-slate-700">
+                      Other Income <span className="text-slate-400 font-normal">(optional)</span>
+                    </label>
+                    <button type="button" onClick={addAdditionalIncome} className="text-xs text-green-600 hover:text-green-700 font-medium">
+                      + Add
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {additionalIncomes.map((income, index) => (
+                      <div key={index} className="flex gap-2">
+                        <input
+                          type="text"
+                          value={income.name}
+                          onChange={(e) => updateAdditionalIncome(index, 'name', e.target.value)}
+                          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-green-500 focus:outline-none"
+                          placeholder="Source"
+                        />
+                        <div className="relative flex-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₦</span>
+                          <input
+                            type="number"
+                            value={income.amount}
+                            onChange={(e) => updateAdditionalIncome(index, 'amount', e.target.value)}
+                            className="w-full pl-7 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-green-500 focus:outline-none"
+                            placeholder="Annual"
+                          />
                         </div>
-                        <span className="font-semibold text-blue-700 ml-2">{formatCurrency(band.tax || 0)}</span>
+                        {additionalIncomes.length > 1 && (
+                          <button type="button" onClick={() => removeAdditionalIncome(index)} className="p-2 text-red-400 hover:text-red-600 rounded-lg">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
                 </div>
-              )}
 
-              {/* Final Tax */}
-              <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-lg p-5 text-white">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-green-100">Annual Tax Payable</span>
-                  <span className="text-2xl font-bold">{formatCurrency(results.netTax)}</span>
-                </div>
-                <div className="flex justify-between items-center text-green-100">
-                  <span>Monthly Tax</span>
-                  <span className="font-semibold">{formatCurrency(results.monthlyTax)}</span>
-                </div>
-                <div className="mt-3 pt-3 border-t border-green-500 flex justify-between items-center text-green-100 text-sm">
-                  <span>Effective Tax Rate</span>
-                  <span className="font-semibold">{results.effectiveRate.toFixed(2)}%</span>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="space-y-3 pt-4 border-t border-slate-200">
+                {/* Calculate Button */}
                 <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="w-full bg-green-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center"
+                  type="submit"
+                  className="w-full py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold rounded-lg shadow-md shadow-green-500/25 hover:shadow-green-500/40 transition-all flex items-center justify-center"
                 >
-                  {saving ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
-                      </svg>
-                      Save Analysis
-                    </>
-                  )}
+                  <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  Calculate Tax
                 </button>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    onClick={handleDownload}
-                    className="bg-slate-100 text-slate-700 px-4 py-2.5 rounded-lg font-medium hover:bg-slate-200 transition-colors flex items-center justify-center"
-                  >
-                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Download
-                  </button>
-                  <button
-                    onClick={resetForm}
-                    className="bg-slate-100 text-slate-700 px-4 py-2.5 rounded-lg font-medium hover:bg-slate-200 transition-colors"
-                  >
-                    New Calculation
-                  </button>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        {/* Results Panel */}
+        <div className="lg:col-span-2">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden sticky top-6">
+            {results ? (
+              <div>
+                {/* Result Header */}
+                <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-5 text-white">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-green-100 text-sm font-medium">Monthly Tax</span>
+                    <button onClick={resetForm} className="text-green-100 hover:text-white text-xs underline">
+                      Reset
+                    </button>
+                  </div>
+                  <div className="text-3xl font-bold mb-1">
+                    {formatCurrency(results.monthlyTax || 0)}
+                  </div>
+                  <div className="flex gap-4 text-sm text-green-100">
+                    <span>Annual: <strong className="text-white">{formatCurrency(results.netTax || 0)}</strong></span>
+                    <span>Rate: <strong className="text-white">{(results.effectiveRate || 0).toFixed(1)}%</strong></span>
+                  </div>
+                </div>
+
+                <div className="p-5 space-y-4">
+                  {/* Tax Exempt */}
+                  {results.taxableIncome <= 800000 && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center">
+                      <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-green-700 font-medium text-sm">Tax Exempt (Income below ₦800K)</span>
+                    </div>
+                  )}
+
+                  {/* Summary */}
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between py-2 border-b border-slate-100">
+                      <span className="text-slate-600">Annual Gross</span>
+                      <span className="font-semibold">{formatCurrency(results.annualGross)}</span>
+                    </div>
+                    <div className="flex justify-between py-2 border-b border-slate-100 text-green-600">
+                      <span>Deductions</span>
+                      <span className="font-semibold">-{formatCurrency(results.totalDeductions || 0)}</span>
+                    </div>
+                    <div className="flex justify-between py-2">
+                      <span className="text-slate-900 font-medium">Taxable Income</span>
+                      <span className="font-bold">{formatCurrency(results.taxableIncome)}</span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="grid grid-cols-2 gap-2 pt-3">
+                    <button
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="py-2.5 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center text-sm"
+                    >
+                      {saving ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                          </svg>
+                          Save
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleDownload}
+                      className="py-2.5 bg-slate-100 text-slate-700 font-medium rounded-lg hover:bg-slate-200 transition-colors flex items-center justify-center text-sm"
+                    >
+                      <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      PDF
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : (
-            <div className="text-center py-12 text-slate-400">
-              <svg className="w-12 h-12 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
-              <p>Enter your salary details and click<br/>"Calculate Tax" to see results</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Tax Bands Reference */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-        <h3 className="font-semibold text-slate-900 mb-4">2026 Personal Income Tax Bands</h3>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-200">
-                <th className="text-left py-2 text-slate-600 font-medium">Income Band</th>
-                <th className="text-right py-2 text-slate-600 font-medium">Rate</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              <tr><td className="py-2">First ₦800,000</td><td className="text-right font-semibold text-green-600">0%</td></tr>
-              <tr><td className="py-2">Next ₦2,200,000</td><td className="text-right">15%</td></tr>
-              <tr><td className="py-2">Next ₦9,000,000</td><td className="text-right">18%</td></tr>
-              <tr><td className="py-2">Next ₦13,000,000</td><td className="text-right">21%</td></tr>
-              <tr><td className="py-2">Next ₦25,000,000</td><td className="text-right">23%</td></tr>
-              <tr><td className="py-2">Above ₦50,000,000</td><td className="text-right">25%</td></tr>
-            </tbody>
-          </table>
+            ) : (
+              <div className="p-8 text-center">
+                <div className="w-14 h-14 bg-slate-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-7 h-7 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <h3 className="font-semibold text-slate-900 mb-1">Your Results</h3>
+                <p className="text-slate-500 text-sm">Enter your salary and click calculate to see your tax breakdown</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
