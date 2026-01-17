@@ -168,12 +168,33 @@ export default function ForgotPassword() {
 
           <div className="grid grid-cols-3 gap-4 text-center">
             {[
-              { icon: '🔒', label: 'Secure' },
-              { icon: '⚡', label: 'Fast' },
-              { icon: '✉️', label: 'Easy' }
+              { 
+                icon: (
+                  <svg className="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                ), 
+                label: 'Secure' 
+              },
+              { 
+                icon: (
+                  <svg className="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                ), 
+                label: 'Fast' 
+              },
+              { 
+                icon: (
+                  <svg className="w-6 h-6 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                ), 
+                label: 'Easy' 
+              }
             ].map((item, i) => (
               <div key={i} className="bg-white/10 backdrop-blur-sm rounded-xl p-3">
-                <div className="text-2xl mb-1">{item.icon}</div>
+                <div className="mb-1 text-white">{item.icon}</div>
                 <div className="text-xs text-green-100">{item.label}</div>
               </div>
             ))}

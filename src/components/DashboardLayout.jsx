@@ -81,8 +81,17 @@ export default function DashboardLayout({ children, userProfile }) {
     try {
       const { error } = await supabase.auth.signOut()
       if (error) throw error
+      
+      // Clear any cached calculation data
+      localStorage.removeItem('personalCalculationData')
+      localStorage.removeItem('businessCalculationData')
+      
       toast.success('Signed out successfully')
-      navigate('/')
+      // Navigate to home and reload to clear all state
+      navigate('/', { replace: true })
+      setTimeout(() => {
+        window.location.reload()
+      }, 100)
     } catch (error) {
       console.error('Sign out error:', error)
       toast.error('Failed to sign out. Please try again.')

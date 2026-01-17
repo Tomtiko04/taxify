@@ -26,9 +26,24 @@ export default function Navbar({ session, userProfile }) {
   }, [location])
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    toast.success('Signed out successfully')
-    navigate('/')
+    try {
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      
+      // Clear any cached calculation data
+      localStorage.removeItem('personalCalculationData')
+      localStorage.removeItem('businessCalculationData')
+      
+      toast.success('Signed out successfully')
+      // Navigate to home and reload to clear all state
+      navigate('/', { replace: true })
+      setTimeout(() => {
+        window.location.reload()
+      }, 100)
+    } catch (error) {
+      console.error('Sign out error:', error)
+      toast.error('Failed to sign out. Please try again.')
+    }
   }
 
   const isIndividual = userProfile?.user_type === 'individual'
