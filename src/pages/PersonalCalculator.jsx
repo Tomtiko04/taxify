@@ -458,30 +458,30 @@ export default function PersonalCalculator() {
                       Enter Your Income Details
                     </h2>
 
-                    <form onSubmit={handleCalculate} className="space-y-6">
+            <form onSubmit={handleCalculate} className="space-y-6">
                       {/* Analysis Name */}
-                      <div>
+              <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                           Analysis Name <span className="text-slate-400 font-normal">(optional)</span>
-                        </label>
-                        <input
+                </label>
+                <input
                           type="text"
                           value={analysisName}
                           onChange={(e) => setAnalysisName(e.target.value)}
                           className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/10 focus:outline-none transition-all"
                           placeholder="e.g., January 2026 Salary"
-                        />
-                      </div>
+                />
+              </div>
 
                       {/* Monthly Salary */}
-                      <div>
+              <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
                           Monthly Gross Salary <span className="text-red-500">*</span>
-                        </label>
+                </label>
                         <div className="relative">
                           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">₦</span>
-                          <input
-                            type="number"
+                <input
+                  type="number"
                             value={monthlyGross}
                             onChange={(e) => setMonthlyGross(e.target.value)}
                             className="w-full pl-10 pr-4 py-3 text-lg font-semibold border border-slate-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/10 focus:outline-none transition-all"
@@ -490,7 +490,7 @@ export default function PersonalCalculator() {
                           />
                         </div>
                         <p className="text-xs text-slate-500 mt-1.5">Your salary before any deductions are made</p>
-                      </div>
+              </div>
 
                       {/* Deductions Section */}
                       <div className="bg-gradient-to-br from-slate-50 to-green-50/30 rounded-xl p-5 border border-slate-100">
@@ -501,10 +501,10 @@ export default function PersonalCalculator() {
                           <label className={`relative flex items-start p-4 rounded-xl border-2 cursor-pointer transition-all ${
                             hasPension ? 'border-green-500 bg-green-50' : 'border-slate-200 bg-white hover:border-slate-300'
                           }`}>
-                            <input
-                              type="checkbox"
-                              checked={hasPension}
-                              onChange={(e) => setHasPension(e.target.checked)}
+                  <input
+                    type="checkbox"
+                    checked={hasPension}
+                    onChange={(e) => setHasPension(e.target.checked)}
                               className="sr-only"
                             />
                             <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mr-3 flex-shrink-0 ${
@@ -520,15 +520,15 @@ export default function PersonalCalculator() {
                               <span className="font-semibold text-slate-900 block">Pension (8%)</span>
                               <span className="text-xs text-slate-500">Contributes to your retirement savings</span>
                             </div>
-                          </label>
+                  </label>
 
                           <label className={`relative flex items-start p-4 rounded-xl border-2 cursor-pointer transition-all ${
                             hasNHF ? 'border-green-500 bg-green-50' : 'border-slate-200 bg-white hover:border-slate-300'
                           }`}>
-                            <input
-                              type="checkbox"
-                              checked={hasNHF}
-                              onChange={(e) => setHasNHF(e.target.checked)}
+                  <input
+                    type="checkbox"
+                    checked={hasNHF}
+                    onChange={(e) => setHasNHF(e.target.checked)}
                               className="sr-only"
                             />
                             <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center mr-3 flex-shrink-0 ${
@@ -544,9 +544,9 @@ export default function PersonalCalculator() {
                               <span className="font-semibold text-slate-900 block">NHF (2.5%)</span>
                               <span className="text-xs text-slate-500">National Housing Fund contribution</span>
                             </div>
-                          </label>
-                        </div>
-                      </div>
+                  </label>
+                </div>
+              </div>
 
                       {/* Annual Rent */}
                       <div>
@@ -564,7 +564,7 @@ export default function PersonalCalculator() {
                           />
                         </div>
                         <p className="text-xs text-slate-500 mt-1.5">You can claim 20% of your rent as tax relief (max ₦500,000)</p>
-                      </div>
+          </div>
 
                       {/* Additional Income */}
                       <div>
@@ -582,7 +582,7 @@ export default function PersonalCalculator() {
                             </svg>
                             Add
                           </button>
-                        </div>
+                  </div>
                         <div className="space-y-3">
                           {additionalIncomes.map((income, index) => (
                             <div key={index} className="flex gap-3">
@@ -602,7 +602,7 @@ export default function PersonalCalculator() {
                                   className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:border-green-500 focus:outline-none"
                                   placeholder="Annual amount"
                                 />
-                              </div>
+                  </div>
                               {additionalIncomes.length > 1 && (
                                 <button
                                   type="button"
@@ -614,9 +614,9 @@ export default function PersonalCalculator() {
                                   </svg>
                                 </button>
                               )}
-                            </div>
+                  </div>
                           ))}
-                        </div>
+                    </div>
                       </div>
 
                       {/* Calculate Button */}
@@ -632,15 +632,15 @@ export default function PersonalCalculator() {
                         Calculate My Tax
                       </motion.button>
                     </form>
+                    </div>
                   </div>
                 </div>
-              </div>
 
               {/* Results Panel */}
               <div className="lg:col-span-2" ref={resultsRef}>
                 <div className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden sticky top-24">
                   {results ? (
-                    <div>
+                <div>
                       {/* Result Header */}
                       <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-6 text-white">
                         <div className="flex items-center justify-between mb-4">
@@ -666,35 +666,35 @@ export default function PersonalCalculator() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                               <span className="font-semibold">Tax Exempt</span>
-                            </div>
+                      </div>
                             <p className="text-green-600 text-sm mt-1">Your income is below ₦800,000/year</p>
-                          </div>
-                        )}
+                      </div>
+                    )}
 
                         {/* Summary */}
                         <div className="space-y-3">
                           <div className="flex justify-between py-2 border-b border-slate-100">
                             <span className="text-slate-600">Annual Gross</span>
                             <span className="font-semibold">{formatCurrency(results.annualGross)}</span>
-                          </div>
+                  </div>
                           <div className="flex justify-between py-2 border-b border-slate-100">
                             <span className="text-green-600">Deductions</span>
                             <span className="font-semibold text-green-600">-{formatCurrency(results.totalDeductions || 0)}</span>
-                          </div>
+                </div>
                           <div className="flex justify-between py-2 border-b border-slate-100">
                             <span className="text-slate-600">Taxable Income</span>
                             <span className="font-semibold">{formatCurrency(results.taxableIncome)}</span>
-                          </div>
+                  </div>
                           <div className="flex justify-between py-2">
                             <span className="text-slate-900 font-medium">Effective Rate</span>
                             <span className="font-bold text-green-600">{(results.effectiveRate || 0).toFixed(2)}%</span>
-                          </div>
-                        </div>
+                  </div>
+                </div>
 
                         {/* Actions */}
                         <div className="grid grid-cols-2 gap-3 pt-4">
-                          {session ? (
-                            <button
+                  {session ? (
+                      <button
                               onClick={handleSave}
                               className="py-3 bg-green-600 text-white font-medium rounded-xl hover:bg-green-700 transition-colors flex items-center justify-center text-sm"
                             >
@@ -702,7 +702,7 @@ export default function PersonalCalculator() {
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                               </svg>
                               Save
-                            </button>
+                      </button>
                           ) : (
                             <Link
                               to="/signup?return=personal-calculator"
@@ -711,7 +711,7 @@ export default function PersonalCalculator() {
                               Save
                             </Link>
                           )}
-                          <button
+                      <button
                             onClick={handleDownload}
                             className="py-3 bg-slate-100 text-slate-700 font-medium rounded-xl hover:bg-slate-200 transition-colors flex items-center justify-center text-sm"
                           >
@@ -719,7 +719,7 @@ export default function PersonalCalculator() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
                             PDF
-                          </button>
+                      </button>
                         </div>
                       </div>
                     </div>
@@ -813,7 +813,7 @@ export default function PersonalCalculator() {
                     <h3 className="font-semibold text-slate-900 mb-4 flex items-center">
                       <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
+                </svg>
                       How Progressive Taxation Works
                     </h3>
                     <div className="space-y-3 text-sm text-slate-600">
@@ -837,8 +837,8 @@ export default function PersonalCalculator() {
                       <p className="pt-2 border-t border-slate-200">
                         <strong className="text-slate-900">Total Tax:</strong> ₦0 + ₦330,000 + ₦360,000 = <strong className="text-green-600">₦690,000</strong> (13.8% effective rate)
                       </p>
-                    </div>
-                  </div>
+          </div>
+        </div>
 
                   {/* Allowable Deductions */}
                   <div className="mt-6 p-6 bg-green-50 border border-green-200 rounded-xl">
@@ -866,8 +866,8 @@ export default function PersonalCalculator() {
                       </div>
                     </div>
                   </div>
-                </div>
-              </div>
+          </div>
+        </div>
             </motion.div>
           )}
         </AnimatePresence>

@@ -1,131 +1,138 @@
-import { useState, useEffect } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { supabase } from '../lib/supabase'
-import toast from 'react-hot-toast'
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
+import { motion } from "framer-motion";
+import { supabase } from "../lib/supabase";
+import toast from "react-hot-toast";
 
 export default function Login() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [errors, setErrors] = useState({})
-  const [touched, setTouched] = useState({})
-  const navigate = useNavigate()
-  const location = useLocation()
-  
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+  const navigate = useNavigate();
+  const location = useLocation();
+
   // Get the redirect path from location state (if redirected from protected route)
-  const from = location.state?.from || '/dashboard'
+  const from = location.state?.from || "/dashboard";
 
   // Validation functions
   const validateEmail = (value) => {
-    if (!value) return 'Email is required'
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(value)) return 'Please enter a valid email'
-    return ''
-  }
+    if (!value) return "Email is required";
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(value)) return "Please enter a valid email";
+    return "";
+  };
 
   const validatePassword = (value) => {
-    if (!value) return 'Password is required'
-    if (value.length < 6) return 'Password must be at least 6 characters'
-    return ''
-  }
+    if (!value) return "Password is required";
+    if (value.length < 6) return "Password must be at least 6 characters";
+    return "";
+  };
 
   useEffect(() => {
     if (touched.email) {
-      setErrors(prev => ({ ...prev, email: validateEmail(email) }))
+      setErrors((prev) => ({ ...prev, email: validateEmail(email) }));
     }
-  }, [email, touched.email])
+  }, [email, touched.email]);
 
   useEffect(() => {
     if (touched.password) {
-      setErrors(prev => ({ ...prev, password: validatePassword(password) }))
+      setErrors((prev) => ({ ...prev, password: validatePassword(password) }));
     }
-  }, [password, touched.password])
+  }, [password, touched.password]);
 
   const handleBlur = (field) => {
-    setTouched(prev => ({ ...prev, [field]: true }))
-  }
+    setTouched((prev) => ({ ...prev, [field]: true }));
+  };
 
   const handleLogin = async (e) => {
-    e.preventDefault()
-    
-    const emailError = validateEmail(email)
-    const passwordError = validatePassword(password)
-    
-    setErrors({ email: emailError, password: passwordError })
-    setTouched({ email: true, password: true })
+    e.preventDefault();
+
+    const emailError = validateEmail(email);
+    const passwordError = validatePassword(password);
+
+    setErrors({ email: emailError, password: passwordError });
+    setTouched({ email: true, password: true });
 
     if (emailError || passwordError) {
-      return
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
-      })
+      });
 
-      if (error) throw error
+      if (error) throw error;
 
       if (data.user && !data.user.email_confirmed_at) {
-        toast.error('Please verify your email before signing in.')
-        await supabase.auth.signOut()
-        navigate(`/verify-email?email=${encodeURIComponent(email)}`, { state: { from } })
-        return
+        toast.error("Please verify your email before signing in.");
+        await supabase.auth.signOut();
+        navigate(`/verify-email?email=${encodeURIComponent(email)}`, {
+          state: { from },
+        });
+        return;
       }
 
-      toast.success('Welcome back!')
+      toast.success("Welcome back!");
       // Redirect to the original location or dashboard
-      navigate(from, { replace: true })
+      navigate(from, { replace: true });
     } catch (error) {
-      toast.error(error.message || 'Invalid email or password')
+      toast.error(error.message || "Invalid email or password");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleGoogleLogin = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
+        provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/dashboard`
-        }
-      })
-      if (error) throw error
+          redirectTo: `${window.location.origin}/dashboard`,
+        },
+      });
+      if (error) throw error;
     } catch (error) {
-      toast.error(error.message || 'An error occurred')
-      setLoading(false)
+      toast.error(error.message || "An error occurred");
+      setLoading(false);
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen flex">
+    <div className="flex min-h-screen">
       {/* Left Side - Form */}
       <div className="w-full lg:w-[45%] flex items-center justify-center p-6 lg:p-10 bg-white">
-        <motion.div 
+        <motion.div
           className="w-full max-w-sm"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
           {/* Logo */}
-          <Link to="/" className="inline-flex items-center space-x-2 mb-8">
-            <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-green-500/25">
-              <span className="text-white font-bold text-xl">₦</span>
+          <Link to="/" className="inline-flex items-center mb-8 space-x-2">
+            <div className="flex items-center justify-center w-10 h-10 shadow-lg bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-green-500/25">
+              <span className="text-xl font-bold text-white">₦</span>
             </div>
             <span className="text-xl font-bold text-slate-900">Taxify</span>
           </Link>
 
           {/* Header */}
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">Welcome back</h1>
-          <p className="text-slate-500 mb-6">
-            Don't have an account?{' '}
-            <Link to="/signup" className="text-green-600 hover:text-green-500 font-medium">
+          <h1 className="mb-1 text-2xl font-bold text-slate-900">
+            Welcome back
+          </h1>
+          <p className="mb-6 text-slate-500">
+            Don't have an account?{" "}
+            <Link
+              to="/signup"
+              className="font-medium text-green-600 hover:text-green-500"
+            >
               Sign up
             </Link>
           </p>
@@ -134,23 +141,35 @@ export default function Login() {
           <form onSubmit={handleLogin} className="space-y-4">
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Email
+              </label>
               <div className="relative">
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  onBlur={() => handleBlur('email')}
+                  onBlur={() => handleBlur("email")}
                   className={`w-full px-4 py-2.5 bg-slate-50 border rounded-lg focus:outline-none focus:bg-white transition-all text-sm ${
-                    errors.email && touched.email 
-                      ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' 
-                      : 'border-slate-200 focus:border-green-500 focus:ring-2 focus:ring-green-500/20'
+                    errors.email && touched.email
+                      ? "border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                      : "border-slate-200 focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
                   }`}
                   placeholder="you@example.com"
                 />
                 {touched.email && !errors.email && email && (
-                  <svg className="w-4 h-4 text-green-500 absolute right-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <svg
+                    className="absolute w-4 h-4 text-green-500 -translate-y-1/2 right-3 top-1/2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
                   </svg>
                 )}
               </div>
@@ -162,35 +181,67 @@ export default function Login() {
             {/* Password */}
             <div>
               <div className="flex justify-between mb-1.5">
-                <label className="block text-sm font-medium text-slate-700">Password</label>
-                <Link to="/forgot-password" className="text-xs text-green-600 hover:text-green-500">Forgot?</Link>
+                <label className="block text-sm font-medium text-slate-700">
+                  Password
+                </label>
+                <Link
+                  to="/forgot-password"
+                  className="text-xs text-green-600 hover:text-green-500"
+                >
+                  Forgot?
+                </Link>
               </div>
               <div className="relative">
                 <input
-                  type={showPassword ? 'text' : 'password'}
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  onBlur={() => handleBlur('password')}
+                  onBlur={() => handleBlur("password")}
                   className={`w-full px-4 py-2.5 pr-10 bg-slate-50 border rounded-lg focus:outline-none focus:bg-white transition-all text-sm ${
-                    errors.password && touched.password 
-                      ? 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' 
-                      : 'border-slate-200 focus:border-green-500 focus:ring-2 focus:ring-green-500/20'
+                    errors.password && touched.password
+                      ? "border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20"
+                      : "border-slate-200 focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
                   }`}
                   placeholder="Enter your password"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute -translate-y-1/2 right-3 top-1/2 text-slate-400 hover:text-slate-600"
                 >
                   {showPassword ? (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                      />
                     </svg>
                   ) : (
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    <svg
+                      className="w-4 h-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                      />
                     </svg>
                   )}
                 </button>
@@ -202,7 +253,10 @@ export default function Login() {
 
             {/* Remember Me */}
             <label className="flex items-center cursor-pointer">
-              <input type="checkbox" className="w-4 h-4 text-green-600 border-slate-300 rounded focus:ring-green-500" />
+              <input
+                type="checkbox"
+                className="w-4 h-4 text-green-600 rounded border-slate-300 focus:ring-green-500"
+              />
               <span className="ml-2 text-sm text-slate-600">Remember me</span>
             </label>
 
@@ -212,7 +266,7 @@ export default function Login() {
               disabled={loading}
               className="w-full py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-medium rounded-lg shadow-md shadow-green-500/25 hover:shadow-lg hover:shadow-green-500/30 transition-all disabled:opacity-50 text-sm"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? "Signing in..." : "Sign in"}
             </button>
           </form>
 
@@ -234,20 +288,36 @@ export default function Login() {
             className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all disabled:opacity-50 text-sm"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+              />
             </svg>
             <span className="text-slate-700">Continue with Google</span>
           </button>
 
           {/* Footer */}
-          <p className="mt-6 text-center text-xs text-slate-400">
-            By signing in, you agree to our{' '}
-            <Link to="/terms" className="text-green-600 hover:underline">Terms</Link>
-            {' '}and{' '}
-            <Link to="/privacy" className="text-green-600 hover:underline">Privacy Policy</Link>
+          <p className="mt-6 text-xs text-center text-slate-400">
+            By signing in, you agree to our{" "}
+            <Link to="/terms" className="text-green-600 hover:underline">
+              Terms
+            </Link>{" "}
+            and{" "}
+            <Link to="/privacy" className="text-green-600 hover:underline">
+              Privacy Policy
+            </Link>
           </p>
         </motion.div>
       </div>
@@ -255,80 +325,85 @@ export default function Login() {
       {/* Right Side - Visual */}
       <div className="hidden lg:flex lg:w-[55%] bg-gradient-to-br from-green-500 via-emerald-600 to-green-700 relative overflow-hidden items-center justify-center p-8">
         {/* Animated Background */}
-        <motion.div 
-          className="absolute top-10 left-10 w-64 h-64 bg-white/10 rounded-full blur-3xl"
+        <motion.div
+          className="absolute w-64 h-64 rounded-full top-10 left-10 bg-white/10 blur-3xl"
           animate={{ scale: [1, 1.2, 1], x: [0, 20, 0] }}
           transition={{ duration: 8, repeat: Infinity }}
         />
-        <motion.div 
-          className="absolute bottom-10 right-10 w-80 h-80 bg-white/10 rounded-full blur-3xl"
+        <motion.div
+          className="absolute rounded-full bottom-10 right-10 w-80 h-80 bg-white/10 blur-3xl"
           animate={{ scale: [1.2, 1, 1.2], y: [0, -20, 0] }}
           transition={{ duration: 10, repeat: Infinity }}
         />
 
         {/* Content */}
-        <div className="relative z-10 text-white max-w-md">
+        <div className="relative z-10 max-w-md text-white">
           {/* Calculator Preview Card */}
-          <motion.div 
-            className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20 mb-6"
+          <motion.div
+            className="p-6 mb-6 border bg-white/10 backdrop-blur-sm rounded-2xl border-white/20"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
             <div className="flex items-center justify-between mb-4">
-              <span className="text-white/80 text-sm">Tax Summary</span>
-              <span className="px-2 py-1 bg-green-400/20 text-green-300 text-xs rounded-full">2025 Act</span>
+              <span className="text-sm text-white/80">Tax Summary</span>
+              <span className="px-2 py-1 text-xs text-green-300 rounded-full bg-green-400/20">
+                2025 Act
+              </span>
             </div>
             <div className="space-y-3">
-              <div className="flex justify-between items-center">
-                <span className="text-white/70 text-sm">Annual Income</span>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/70">Annual Income</span>
                 <span className="font-semibold">₦3,600,000</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-white/70 text-sm">Total Deductions</span>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/70">Total Deductions</span>
                 <span className="font-semibold text-blue-300">₦378,000</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-white/70 text-sm">Tax Payable</span>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-white/70">Tax Payable</span>
                 <span className="font-semibold text-amber-300">₦280,500</span>
               </div>
-              <div className="h-px bg-white/20 my-2"></div>
-              <div className="flex justify-between items-center">
-                <span className="text-white/90 font-medium">Net Take-Home</span>
-                <span className="font-bold text-lg text-green-300">₦2,941,500</span>
+              <div className="h-px my-2 bg-white/20"></div>
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-white/90">Net Take-Home</span>
+                <span className="text-lg font-bold text-green-300">
+                  ₦2,941,500
+                </span>
               </div>
             </div>
           </motion.div>
 
-          <motion.h2 
-            className="text-2xl font-bold mb-3"
+          <motion.h2
+            className="mb-3 text-2xl font-bold"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
           >
             Nigeria's Trusted Tax Calculator
           </motion.h2>
-          
-          <motion.p 
-            className="text-green-100 mb-6 text-sm"
+
+          <motion.p
+            className="mb-6 text-sm text-green-100"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
           >
-            Calculate your PAYE or Corporate Income Tax accurately based on the Nigeria Tax Act 2025.
+            Calculate your PAYE or Corporate Income Tax accurately based on the
+            Nigeria Tax Act 2025.
           </motion.p>
 
           {/* Stats */}
-          <motion.div 
+          <motion.div
             className="grid grid-cols-3 gap-4"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
           >
             {[
-              { value: '10K+', label: 'Users' },
-              { value: '98%', label: 'Accuracy' },
-              { value: '24/7', label: 'Available' }
+              { value: "10K+", label: "Users" },
+              { value: "98%", label: "Accuracy" },
+              { value: "24/7", label: "Available" },
             ].map((stat, i) => (
               <div key={i} className="text-center">
                 <div className="text-xl font-bold">{stat.value}</div>
@@ -339,5 +414,5 @@ export default function Login() {
         </div>
       </div>
     </div>
-  )
+  );
 }
