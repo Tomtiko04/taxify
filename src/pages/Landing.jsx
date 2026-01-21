@@ -42,10 +42,6 @@ const floatAnimation = {
   },
 };
 
-export default function Landing({ session, userProfile }) {
-  const isIndividual = userProfile?.user_type === "individual";
-  const isCompany = userProfile?.user_type === "company";
-
   const stats = [
     { number: "10,000+", label: "Calculations Made" },
     { number: "₦2.5B+", label: "Taxes Calculated" },
@@ -224,6 +220,10 @@ export default function Landing({ session, userProfile }) {
     },
   ];
 
+
+export default function Landing({ session, userProfile }) {
+  const isIndividual = userProfile?.user_type === "individual";
+  const isCompany = userProfile?.user_type === "company";
   return (
     <div className="min-h-screen overflow-hidden">
       {/* Hero Section */}
@@ -358,14 +358,9 @@ export default function Landing({ session, userProfile }) {
               variants={fadeInRight}
               className="hidden lg:block"
             >
-              <motion.div
-                className="relative"
-                variants={floatAnimation}
-                initial="initial"
-                animate="animate"
-              >
+              <div className="relative sticky top-24">
                 <div className="relative p-8 border shadow-2xl bg-gradient-to-br from-white/10 to-white/5 backdrop-blur-xl rounded-3xl border-white/20">
-                  <div className="absolute flex items-center justify-center w-24 h-24 bg-green-500 shadow-lg -top-4 -right-4 rounded-2xl shadow-green-500/50">
+                  {/* <div className="absolute flex items-center justify-center w-24 h-24 bg-green-500 shadow-lg -top-4 -right-4 rounded-2xl shadow-green-500/50">
                     <svg
                       className="w-12 h-12 text-white"
                       fill="none"
@@ -379,7 +374,7 @@ export default function Landing({ session, userProfile }) {
                         d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
                       />
                     </svg>
-                  </div>
+                  </div> */}
 
                   <h3 className="mb-6 text-lg font-semibold text-slate-300">
                     Quick Calculation Preview
@@ -477,7 +472,7 @@ export default function Landing({ session, userProfile }) {
                     </div>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             </motion.div>
           </div>
         </div>
@@ -612,7 +607,7 @@ export default function Landing({ session, userProfile }) {
               <div className="aspect-video">
                 <iframe
                   className="w-full h-full"
-                  src="https://www.youtube.com/embed/QXPVqJV5BSU"
+                  src="https://www.youtube.com/embed/7z3mXKxBx-U"
                   title="Understanding Nigerian Tax System"
                   frameBorder="0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"

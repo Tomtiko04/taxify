@@ -234,3 +234,29 @@ export function formatCurrency(amount) {
     maximumFractionDigits: 0,
   }).format(amount)
 }
+
+/**
+ * Format number with commas (for input display)
+ * @param {string|number} value - The value to format
+ * @returns {string} Formatted number with commas
+ */
+export function formatNumberWithCommas(value) {
+  if (!value && value !== 0) return ''
+  // Remove all non-digit characters
+  const numericValue = String(value).replace(/\D/g, '')
+  if (!numericValue) return ''
+  // Add commas
+  return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+}
+
+/**
+ * Parse formatted number (remove commas) for calculations
+ * @param {string} value - The formatted value
+ * @returns {number} Parsed number
+ */
+export function parseFormattedNumber(value) {
+  if (!value) return 0
+  // Remove all non-digit characters and parse
+  const numericString = String(value).replace(/\D/g, '')
+  return numericString ? parseFloat(numericString) : 0
+}

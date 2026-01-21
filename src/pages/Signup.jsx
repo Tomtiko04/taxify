@@ -1,8 +1,39 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, memo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
+import { formatNumberWithCommas, parseFormattedNumber } from '../utils/taxCalculations'
+
+// InputField component - defined outside to prevent recreation
+const InputField = memo(function InputField({ name, label, type = 'text', placeholder, value, onChange, onBlur, error, touched }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>
+      <input
+        name={name}
+        type={type === 'number' ? 'text' : type}
+        value={value}
+        onChange={onChange}
+        onBlur={onBlur}
+        className={`w-full px-4 py-2.5 bg-slate-50 border rounded-lg focus:outline-none focus:bg-white transition-all text-sm ${
+          error && touched ? 'border-red-300 focus:border-red-500' : 'border-slate-200 focus:border-green-500 focus:ring-2 focus:ring-green-500/20'
+        }`}
+        placeholder={placeholder}
+      />
+      {error && touched && <p className="mt-1 text-xs text-red-500">{error}</p>}
+    </div>
+  )
+})
+
+const businessTypes = [
+  'Sole Proprietorship',
+  'Partnership',
+  'Limited Liability Company',
+  'Public Limited Company',
+  'Non-Profit Organization',
+  'Other'
+]
 
 export default function Signup() {
   const [step, setStep] = useState(1)
@@ -25,14 +56,7 @@ export default function Signup() {
   const [showPassword, setShowPassword] = useState(false)
   const navigate = useNavigate()
 
-  const businessTypes = [
-    'Sole Proprietorship',
-    'Partnership',
-    'Limited Liability Company',
-    'Public Limited Company',
-    'Non-Profit Organization',
-    'Other'
-  ]
+
 
   // Validation
   const validateField = (name, value) => {
@@ -46,7 +70,8 @@ export default function Signup() {
         return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? 'Invalid email' : ''
       case 'monthlySalary':
       case 'annualTurnover':
-        return !value ? 'Required' : parseFloat(value) < 0 ? 'Invalid' : ''
+        const parsed = parseFormattedNumber(value)
+        return !value ? 'Required' : parsed < 0 ? 'Invalid' : ''
       case 'businessType':
         return !value ? 'Required' : ''
       case 'password':
@@ -87,7 +112,13 @@ export default function Signup() {
   
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target
-    setFormData(prev => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
+    let finalValue = type === 'checkbox' ? checked : value
+
+    if (name === 'monthlySalary' || name === 'annualTurnover') {
+      finalValue = formatNumberWithCommas(value)
+    }
+
+    setFormData(prev => ({ ...prev, [name]: finalValue }))
   }
 
   const handleUserTypeSelect = (type) => {
@@ -104,7 +135,12 @@ export default function Signup() {
       : ['companyName', 'businessEmail', 'businessType', 'annualTurnover', 'password', 'confirmPassword']
     
     const newErrors = {}
-    fields.forEach(f => { newErrors[f] = validateField(f, formData[f]) })
+    fields.forEach(f => { 
+      const value = formData[f]
+      // Parse numeric fields for validation
+      const parsedValue = (f === 'monthlySalary' || f === 'annualTurnover') ? parseFormattedNumber(value) : value
+      newErrors[f] = validateField(f, parsedValue) 
+    })
     setErrors(newErrors)
     setTouched(fields.reduce((acc, f) => ({ ...acc, [f]: true }), {}))
 
@@ -116,17 +152,22 @@ export default function Signup() {
     setLoading(true)
     try {
       const email = userType === 'individual' ? formData.email : formData.businessEmail
+      // Parse numeric values before sending
+      const monthlySalary = parseFormattedNumber(formData.monthlySalary)
+      const annualTurnover = parseFormattedNumber(formData.annualTurnover)
+      
       const { error } = await supabase.auth.signUp({
         email,
         password: formData.password,
         options: {
+          emailRedirectTo: `${import.meta.env.VITE_SITE_URL || window.location.origin}/verify-email`,
           data: {
             user_type: userType,
             full_name: formData.fullName,
-            monthly_salary: formData.monthlySalary,
+            monthly_salary: monthlySalary,
             company_name: formData.companyName,
             business_type: formData.businessType,
-            annual_turnover: formData.annualTurnover,
+            annual_turnover: annualTurnover,
           }
         }
       })
@@ -144,7 +185,9 @@ export default function Signup() {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/dashboard` }
+        options: { 
+          redirectTo: `${import.meta.env.VITE_SITE_URL || window.location.origin}/dashboard` 
+        }
       })
       if (error) throw error
     } catch (error) {
@@ -153,23 +196,6 @@ export default function Signup() {
     }
   }
 
-  const InputField = ({ name, label, type = 'text', placeholder, value }) => (
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>
-      <input
-        name={name}
-        type={type}
-        value={value}
-        onChange={handleInputChange}
-        onBlur={() => handleBlur(name)}
-        className={`w-full px-4 py-2.5 bg-slate-50 border rounded-lg focus:outline-none focus:bg-white transition-all text-sm ${
-          errors[name] && touched[name] ? 'border-red-300 focus:border-red-500' : 'border-slate-200 focus:border-green-500 focus:ring-2 focus:ring-green-500/20'
-        }`}
-        placeholder={placeholder}
-      />
-      {errors[name] && touched[name] && <p className="mt-1 text-xs text-red-500">{errors[name]}</p>}
-    </div>
-  )
 
   return (
     <div className="min-h-screen flex">
@@ -393,9 +419,38 @@ export default function Signup() {
                 <form onSubmit={handleSignup} className="space-y-4">
                   {userType === 'individual' ? (
                     <>
-                      <InputField name="fullName" label="Full Name" placeholder="John Doe" value={formData.fullName} />
-                      <InputField name="email" label="Email" type="email" placeholder="you@example.com" value={formData.email} />
-                      <InputField name="monthlySalary" label="Monthly Salary (₦)" type="number" placeholder="200000" value={formData.monthlySalary} />
+                      <InputField 
+                        name="fullName" 
+                        label="Full Name" 
+                        placeholder="John Doe" 
+                        value={formData.fullName} 
+                        onChange={handleInputChange}
+                        onBlur={() => handleBlur('fullName')}
+                        error={errors.fullName}
+                        touched={touched.fullName}
+                      />
+                      <InputField 
+                        name="email" 
+                        label="Email" 
+                        type="email" 
+                        placeholder="you@example.com" 
+                        value={formData.email} 
+                        onChange={handleInputChange}
+                        onBlur={() => handleBlur('email')}
+                        error={errors.email}
+                        touched={touched.email}
+                      />
+                      <InputField 
+                        name="monthlySalary" 
+                        label="Monthly Salary (₦)" 
+                        type="number" 
+                        placeholder="200000" 
+                        value={formData.monthlySalary} 
+                        onChange={handleInputChange}
+                        onBlur={() => handleBlur('monthlySalary')}
+                        error={errors.monthlySalary}
+                        touched={touched.monthlySalary}
+                      />
                     </>
                   ) : (
                     <>
@@ -415,9 +470,38 @@ export default function Signup() {
                         </select>
                         {errors.businessType && touched.businessType && <p className="mt-1 text-xs text-red-500">{errors.businessType}</p>}
                       </div>
-                      <InputField name="companyName" label="Company Name" placeholder="ABC Ltd" value={formData.companyName} />
-                      <InputField name="businessEmail" label="Business Email" type="email" placeholder="contact@company.com" value={formData.businessEmail} />
-                      <InputField name="annualTurnover" label="Annual Turnover (₦)" type="number" placeholder="100000000" value={formData.annualTurnover} />
+                      <InputField 
+                        name="companyName" 
+                        label="Company Name" 
+                        placeholder="ABC Ltd" 
+                        value={formData.companyName} 
+                        onChange={handleInputChange}
+                        onBlur={() => handleBlur('companyName')}
+                        error={errors.companyName}
+                        touched={touched.companyName}
+                      />
+                      <InputField 
+                        name="businessEmail" 
+                        label="Business Email" 
+                        type="email" 
+                        placeholder="contact@company.com" 
+                        value={formData.businessEmail} 
+                        onChange={handleInputChange}
+                        onBlur={() => handleBlur('businessEmail')}
+                        error={errors.businessEmail}
+                        touched={touched.businessEmail}
+                      />
+                      <InputField 
+                        name="annualTurnover" 
+                        label="Annual Turnover (₦)" 
+                        type="number" 
+                        placeholder="100000000" 
+                        value={formData.annualTurnover} 
+                        onChange={handleInputChange}
+                        onBlur={() => handleBlur('annualTurnover')}
+                        error={errors.annualTurnover}
+                        touched={touched.annualTurnover}
+                      />
                     </>
                   )}
 

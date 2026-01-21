@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { calculatePAYE, formatCurrency } from "../utils/taxCalculations";
+import { calculatePAYE, formatCurrency, formatNumberWithCommas, parseFormattedNumber } from "../utils/taxCalculations";
 import { supabase } from "../lib/supabase";
 import { savePersonalCalculationData, saveReturnUrl } from "../utils/storage";
 import toast from "react-hot-toast";
@@ -54,12 +54,12 @@ export default function PersonalCalculator() {
   const handleCalculate = (e) => {
     e.preventDefault();
 
-    const monthlyValue = parseFloat(monthlyGross) || 0;
+    const monthlyValue = parseFormattedNumber(monthlyGross);
     const additionalTotal = additionalIncomes.reduce(
-      (sum, item) => sum + (parseFloat(item.amount) || 0),
+      (sum, item) => sum + parseFormattedNumber(item.amount),
       0
     );
-    const rentValue = parseFloat(annualRent) || 0;
+    const rentValue = parseFormattedNumber(annualRent);
 
     if (monthlyValue <= 0 && additionalTotal <= 0) {
       toast.error("Please enter your monthly salary");
@@ -96,7 +96,11 @@ export default function PersonalCalculator() {
 
   const updateAdditionalIncome = (index, field, value) => {
     const updated = [...additionalIncomes];
-    updated[index][field] = value;
+    if (field === 'amount') {
+      updated[index][field] = formatNumberWithCommas(value);
+    } else {
+      updated[index][field] = value;
+    }
     setAdditionalIncomes(updated);
   };
 
@@ -595,9 +599,9 @@ export default function PersonalCalculator() {
                             ₦
                           </span>
                           <input
-                            type="number"
+                            type="text"
                             value={monthlyGross}
-                            onChange={(e) => setMonthlyGross(e.target.value)}
+                            onChange={(e) => setMonthlyGross(formatNumberWithCommas(e.target.value))}
                             className="w-full py-3 pl-10 pr-4 text-lg font-semibold transition-all border border-slate-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/10 focus:outline-none"
                             placeholder="500,000"
                             required
@@ -790,7 +794,7 @@ export default function PersonalCalculator() {
                                   ₦
                                 </span>
                                 <input
-                                  type="number"
+                                  type="text"
                                   value={income.amount}
                                   onChange={(e) =>
                                     updateAdditionalIncome(

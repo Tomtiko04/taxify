@@ -9,17 +9,21 @@ export default function Profile({ userProfile, onProfileUpdate }) {
   const [formData, setFormData] = useState({
     full_name: userProfile?.full_name || "",
     email: userProfile?.email || "",
-    monthly_salary: userProfile?.monthly_salary?.toString() || "",
+    monthly_salary: userProfile?.monthly_salary ? formatNumberWithCommas(userProfile.monthly_salary.toString()) : "",
     company_name: userProfile?.company_name || "",
     business_type: userProfile?.business_type || "",
-    annual_turnover: userProfile?.annual_turnover?.toString() || "",
+    annual_turnover: userProfile?.annual_turnover ? formatNumberWithCommas(userProfile.annual_turnover.toString()) : "",
   });
 
   const isCompany = userProfile?.user_type === "company";
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === 'monthly_salary' || name === 'annual_turnover') {
+      setFormData((prev) => ({ ...prev, [name]: formatNumberWithCommas(value) }));
+    } else {
+      setFormData((prev) => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSave = async () => {
@@ -32,12 +36,12 @@ export default function Profile({ userProfile, onProfileUpdate }) {
               company_name: formData.company_name,
               business_type: formData.business_type,
               annual_turnover: formData.annual_turnover
-                ? parseFloat(formData.annual_turnover)
+                ? parseFormattedNumber(formData.annual_turnover)
                 : null,
             }
           : {
               monthly_salary: formData.monthly_salary
-                ? parseFloat(formData.monthly_salary)
+                ? parseFormattedNumber(formData.monthly_salary)
                 : null,
             }),
       };
@@ -67,7 +71,7 @@ export default function Profile({ userProfile, onProfileUpdate }) {
       const { error } = await supabase.auth.resetPasswordForEmail(
         userProfile.email,
         {
-          redirectTo: `${window.location.origin}/reset-password`,
+          redirectTo: `${import.meta.env.VITE_SITE_URL || window.location.origin}/reset-password`,
         }
       );
 
@@ -231,12 +235,12 @@ export default function Profile({ userProfile, onProfileUpdate }) {
                     Monthly Salary (₦)
                   </label>
                   <input
-                    type="number"
+                    type="text"
                     name="monthly_salary"
                     value={formData.monthly_salary}
                     onChange={handleChange}
                     className="input-field"
-                    placeholder="e.g., 500000"
+                    placeholder="e.g., 500,000"
                   />
                 </div>
               )}

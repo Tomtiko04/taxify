@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { calculatePAYE, formatCurrency } from '../../utils/taxCalculations'
+import { calculatePAYE, formatCurrency, formatNumberWithCommas, parseFormattedNumber } from '../../utils/taxCalculations'
 import { supabase } from '../../lib/supabase'
 import { savePersonalCalculationData, getPersonalCalculationData, saveReturnUrl } from '../../utils/storage'
 import toast from 'react-hot-toast'
@@ -9,7 +9,7 @@ import jsPDF from 'jspdf'
 
 export default function PersonalTax({ userProfile }) {
   const navigate = useNavigate()
-  const [monthlyGross, setMonthlyGross] = useState(userProfile?.monthly_salary?.toString() || '')
+  const [monthlyGross, setMonthlyGross] = useState(userProfile?.monthly_salary ? formatNumberWithCommas(userProfile.monthly_salary.toString()) : '')
   const [additionalIncomes, setAdditionalIncomes] = useState([{ name: '', amount: '' }])
   const [annualRent, setAnnualRent] = useState('')
   const [hasPension, setHasPension] = useState(true)
@@ -51,17 +51,17 @@ export default function PersonalTax({ userProfile }) {
     if (session?.user && results === null) {
       const savedData = getPersonalCalculationData()
       if (savedData) {
-        setMonthlyGross(savedData.monthlyGross || userProfile?.monthly_salary?.toString() || '')
-        setAdditionalIncomes(savedData.additionalIncomes || [{ name: '', amount: '' }])
-        setAnnualRent(savedData.annualRent || '')
+        setMonthlyGross(savedData.monthlyGross ? formatNumberWithCommas(savedData.monthlyGross) : (userProfile?.monthly_salary ? formatNumberWithCommas(userProfile.monthly_salary.toString()) : ''))
+        setAdditionalIncomes((savedData.additionalIncomes || [{ name: '', amount: '' }]).map(item => ({ ...item, amount: item.amount ? formatNumberWithCommas(item.amount) : '' })))
+        setAnnualRent(savedData.annualRent ? formatNumberWithCommas(savedData.annualRent) : '')
         setHasPension(savedData.hasPension !== undefined ? savedData.hasPension : true)
         setHasNHF(savedData.hasNHF !== undefined ? savedData.hasNHF : true)
         setAnalysisName(savedData.analysisName || '')
         
         if (savedData.monthlyGross) {
-          const monthlyValue = parseFloat(savedData.monthlyGross) || 0
-          const additionalTotal = (savedData.additionalIncomes || []).reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
-          const rentValue = parseFloat(savedData.annualRent) || 0
+          const monthlyValue = parseFormattedNumber(savedData.monthlyGross)
+          const additionalTotal = (savedData.additionalIncomes || []).reduce((sum, item) => sum + parseFormattedNumber(item.amount), 0)
+          const rentValue = parseFormattedNumber(savedData.annualRent)
           if (monthlyValue > 0 || additionalTotal > 0) {
             const calculation = calculatePAYE(
               monthlyValue, rentValue,
@@ -81,9 +81,9 @@ export default function PersonalTax({ userProfile }) {
 
   const handleCalculate = (e) => {
     e.preventDefault()
-    const monthlyValue = parseFloat(monthlyGross) || 0
-    const additionalTotal = additionalIncomes.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0)
-    const rentValue = parseFloat(annualRent) || 0
+    const monthlyValue = parseFormattedNumber(monthlyGross)
+    const additionalTotal = additionalIncomes.reduce((sum, item) => sum + parseFormattedNumber(item.amount), 0)
+    const rentValue = parseFormattedNumber(annualRent)
 
     if (monthlyValue <= 0 && additionalTotal <= 0) {
       toast.error('Please enter your monthly salary')
@@ -107,7 +107,11 @@ export default function PersonalTax({ userProfile }) {
 
   const updateAdditionalIncome = (index, field, value) => {
     const updated = [...additionalIncomes]
-    updated[index][field] = value
+    if (field === 'amount') {
+      updated[index][field] = formatNumberWithCommas(value)
+    } else {
+      updated[index][field] = value
+    }
     setAdditionalIncomes(updated)
   }
 
@@ -352,7 +356,7 @@ export default function PersonalTax({ userProfile }) {
 
   const resetForm = () => {
     setResults(null)
-    setMonthlyGross(userProfile?.monthly_salary?.toString() || '')
+    setMonthlyGross(userProfile?.monthly_salary ? formatNumberWithCommas(userProfile.monthly_salary.toString()) : '')
     setAdditionalIncomes([{ name: '', amount: '' }])
     setAnnualRent('')
     setHasPension(true)
@@ -512,9 +516,9 @@ export default function PersonalTax({ userProfile }) {
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">₦</span>
                     <input
-                      type="number"
+                      type="text"
                       value={monthlyGross}
-                      onChange={(e) => setMonthlyGross(e.target.value)}
+                      onChange={(e) => setMonthlyGross(formatNumberWithCommas(e.target.value))}
                       className="w-full pl-10 pr-4 py-2.5 text-lg font-semibold border border-slate-200 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-500/20 focus:outline-none"
                       placeholder="500,000"
                       required
@@ -607,7 +611,7 @@ export default function PersonalTax({ userProfile }) {
                         <div className="relative flex-1">
                           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">₦</span>
                           <input
-                            type="number"
+                            type="text"
                             value={income.amount}
                             onChange={(e) => updateAdditionalIncome(index, 'amount', e.target.value)}
                             className="w-full pl-7 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:border-green-500 focus:outline-none"

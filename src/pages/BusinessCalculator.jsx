@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { calculateCIT, formatCurrency } from '../utils/taxCalculations'
+import { calculateCIT, formatCurrency, formatNumberWithCommas, parseFormattedNumber } from '../utils/taxCalculations'
 import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
@@ -100,12 +100,12 @@ export default function BusinessCalculator() {
   const handleCalculate = (e) => {
     if (e) e.preventDefault()
     
-    const turnoverValue = parseFloat(turnover) || 0
-    const assetsValue = parseFloat(assets) || 0
-    const profitValue = parseFloat(profit) || 0
-    const depreciationValue = parseFloat(depreciation) || 0
-    const finesValue = parseFloat(fines) || 0
-    const capitalAllowancesValue = parseFloat(capitalAllowances) || 0
+    const turnoverValue = parseFormattedNumber(turnover)
+    const assetsValue = parseFormattedNumber(assets)
+    const profitValue = parseFormattedNumber(profit)
+    const depreciationValue = parseFormattedNumber(depreciation)
+    const finesValue = parseFormattedNumber(fines)
+    const capitalAllowancesValue = parseFormattedNumber(capitalAllowances)
 
     if (turnoverValue <= 0) {
       toast.error('Please enter a valid annual turnover')
@@ -209,12 +209,12 @@ export default function BusinessCalculator() {
       toast.success('Analysis complete! Data extracted.', { id: 'analysis' })
 
       if (data.company_name) setCompanyName(data.company_name)
-      if (data.annual_turnover) setTurnover(data.annual_turnover.toString())
-      if (data.total_fixed_assets) setAssets(data.total_fixed_assets.toString())
-      if (data.net_profit_before_tax) setProfit(data.net_profit_before_tax.toString())
-      if (data.depreciation) setDepreciation(data.depreciation.toString())
-      if (data.fines_penalties) setFines(data.fines_penalties.toString())
-      if (data.capital_allowances) setCapitalAllowances(data.capital_allowances.toString())
+      if (data.annual_turnover) setTurnover(formatNumberWithCommas(data.annual_turnover.toString()))
+      if (data.total_fixed_assets) setAssets(formatNumberWithCommas(data.total_fixed_assets.toString()))
+      if (data.net_profit_before_tax) setProfit(formatNumberWithCommas(data.net_profit_before_tax.toString()))
+      if (data.depreciation) setDepreciation(formatNumberWithCommas(data.depreciation.toString()))
+      if (data.fines_penalties) setFines(formatNumberWithCommas(data.fines_penalties.toString()))
+      if (data.capital_allowances) setCapitalAllowances(formatNumberWithCommas(data.capital_allowances.toString()))
 
       setIsAnalyzing(false)
     } catch (error) {
@@ -649,9 +649,9 @@ export default function BusinessCalculator() {
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">₦</span>
                       <input
                         id="assets"
-                        type="number"
+                        type="text"
                         value={assets}
-                        onChange={(e) => setAssets(e.target.value)}
+                        onChange={(e) => setAssets(formatNumberWithCommas(e.target.value))}
                         className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/10 focus:outline-none transition-all"
                         placeholder="250,000,000"
                       />
@@ -667,9 +667,9 @@ export default function BusinessCalculator() {
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-medium">₦</span>
                     <input
                       id="profit"
-                      type="number"
+                      type="text"
                       value={profit}
-                      onChange={(e) => setProfit(e.target.value)}
+                      onChange={(e) => setProfit(formatNumberWithCommas(e.target.value))}
                       className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-xl focus:border-green-500 focus:ring-4 focus:ring-green-500/10 focus:outline-none transition-all"
                       placeholder="25,000,000"
                     />
@@ -685,9 +685,9 @@ export default function BusinessCalculator() {
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">₦</span>
                       <input
                         id="depreciation"
-                        type="number"
+                        type="text"
                         value={depreciation}
-                        onChange={(e) => setDepreciation(e.target.value)}
+                        onChange={(e) => setDepreciation(formatNumberWithCommas(e.target.value))}
                         className="w-full pl-8 pr-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500/10 focus:outline-none transition-all"
                         placeholder="0"
                       />
@@ -717,9 +717,9 @@ export default function BusinessCalculator() {
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">₦</span>
                       <input
                         id="capitalAllowances"
-                        type="number"
+                        type="text"
                         value={capitalAllowances}
-                        onChange={(e) => setCapitalAllowances(e.target.value)}
+                        onChange={(e) => setCapitalAllowances(formatNumberWithCommas(e.target.value))}
                         className="w-full pl-8 pr-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-500/10 focus:outline-none transition-all"
                         placeholder="0"
                       />

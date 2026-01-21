@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { calculateCIT, formatCurrency } from '../../utils/taxCalculations'
+import { calculateCIT, formatCurrency, formatNumberWithCommas, parseFormattedNumber } from '../../utils/taxCalculations'
 import { supabase } from '../../lib/supabase'
 import { saveBusinessCalculationData, getBusinessCalculationData, saveReturnUrl } from '../../utils/storage'
 import toast from 'react-hot-toast'
@@ -44,12 +44,12 @@ export default function BusinessTax({ userProfile }) {
         
         // Recalculate if we have the inputs
         if (savedData.turnover) {
-          const turnoverValue = parseFloat(savedData.turnover) || 0
-          const assetsValue = parseFloat(savedData.assets) || 0
-          const profitValue = parseFloat(savedData.profit) || 0
-          const depreciationValue = parseFloat(savedData.depreciation) || 0
-          const finesValue = parseFloat(savedData.fines) || 0
-          const capitalAllowancesValue = parseFloat(savedData.capitalAllowances) || 0
+          const turnoverValue = parseFormattedNumber(savedData.turnover)
+          const assetsValue = parseFormattedNumber(savedData.assets)
+          const profitValue = parseFormattedNumber(savedData.profit)
+          const depreciationValue = parseFormattedNumber(savedData.depreciation)
+          const finesValue = parseFormattedNumber(savedData.fines)
+          const capitalAllowancesValue = parseFormattedNumber(savedData.capitalAllowances)
           
           if (turnoverValue > 0) {
             const calculation = calculateCIT(
@@ -83,12 +83,12 @@ export default function BusinessTax({ userProfile }) {
   const handleCalculate = (e) => {
     if (e) e.preventDefault()
     
-    const turnoverValue = parseFloat(turnover) || 0
-    const assetsValue = parseFloat(assets) || 0
-    const profitValue = parseFloat(profit) || 0
-    const depreciationValue = parseFloat(depreciation) || 0
-    const finesValue = parseFloat(fines) || 0
-    const capitalAllowancesValue = parseFloat(capitalAllowances) || 0
+    const turnoverValue = parseFormattedNumber(turnover)
+    const assetsValue = parseFormattedNumber(assets)
+    const profitValue = parseFormattedNumber(profit)
+    const depreciationValue = parseFormattedNumber(depreciation)
+    const finesValue = parseFormattedNumber(fines)
+    const capitalAllowancesValue = parseFormattedNumber(capitalAllowances)
 
     if (turnoverValue <= 0) {
       toast.error('Please enter a valid annual turnover')
@@ -265,10 +265,10 @@ FINANCIAL DATA
 --------------
 Annual Turnover: ${formatCurrency(results.turnover)}
 Total Fixed Assets: ${formatCurrency(results.assets)}
-Net Profit Before Tax: ${formatCurrency(parseFloat(profit) || 0)}
-Depreciation: ${formatCurrency(parseFloat(depreciation) || 0)}
-Fines/Penalties: ${formatCurrency(parseFloat(fines) || 0)}
-Capital Allowances: ${formatCurrency(parseFloat(capitalAllowances) || 0)}
+Net Profit Before Tax: ${formatCurrency(parseFormattedNumber(profit))}
+Depreciation: ${formatCurrency(parseFormattedNumber(depreciation))}
+Fines/Penalties: ${formatCurrency(parseFormattedNumber(fines))}
+Capital Allowances: ${formatCurrency(parseFormattedNumber(capitalAllowances))}
 
 TAX CALCULATION
 ---------------
@@ -489,19 +489,19 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Annual Turnover (₦) *</label>
                   <input
-                    type="number"
+                    type="text"
                     required
                     value={turnover}
-                    onChange={(e) => setTurnover(e.target.value)}
+                    onChange={(e) => setTurnover(formatNumberWithCommas(e.target.value))}
                     className="input-field"
                   />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1">Fixed Assets (₦)</label>
                   <input
-                    type="number"
+                    type="text"
                     value={assets}
-                    onChange={(e) => setAssets(e.target.value)}
+                    onChange={(e) => setAssets(formatNumberWithCommas(e.target.value))}
                     className="input-field"
                   />
                 </div>
@@ -510,9 +510,9 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Net Profit Before Tax (₦)</label>
                 <input
-                  type="number"
+                  type="text"
                   value={profit}
-                  onChange={(e) => setProfit(e.target.value)}
+                  onChange={(e) => setProfit(formatNumberWithCommas(e.target.value))}
                   className="input-field"
                 />
               </div>
@@ -520,15 +520,15 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">Depreciation (₦)</label>
-                  <input type="number" value={depreciation} onChange={(e) => setDepreciation(e.target.value)} className="input-field py-2 text-sm" />
+                  <input type="text" value={depreciation} onChange={(e) => setDepreciation(formatNumberWithCommas(e.target.value))} className="input-field py-2 text-sm" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">Fines (₦)</label>
-                  <input type="number" value={fines} onChange={(e) => setFines(e.target.value)} className="input-field py-2 text-sm" />
+                  <input type="text" value={fines} onChange={(e) => setFines(formatNumberWithCommas(e.target.value))} className="input-field py-2 text-sm" />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-slate-700 mb-1">Cap. Allowances (₦)</label>
-                  <input type="number" value={capitalAllowances} onChange={(e) => setCapitalAllowances(e.target.value)} className="input-field py-2 text-sm" />
+                  <input type="text" value={capitalAllowances} onChange={(e) => setCapitalAllowances(formatNumberWithCommas(e.target.value))} className="input-field py-2 text-sm" />
                 </div>
               </div>
 
