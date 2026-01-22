@@ -15,40 +15,32 @@ export default function History({ userProfile }) {
   const [exporting, setExporting] = useState(null)
 
   useEffect(() => {
-    if (userProfile?.id) {
-      fetchCalculations()
-    } else {
-      const timer = setTimeout(() => {
-        if (!userProfile?.id) {
-          setLoading(false)
-        }
-      }, 2000)
-      return () => clearTimeout(timer)
+    let isMounted = true
+    
+    const fetchData = async () => {
+      if (!userProfile?.id) return
+      
+      setLoading(true)
+      try {
+        const { data, error } = await supabase
+          .from('saved_calculations')
+          .select('*')
+          .eq('user_id', userProfile.id)
+          .order('created_at', { ascending: false })
+
+        if (error) throw error
+        if (isMounted) setCalculations(data || [])
+      } catch (error) {
+        console.error('Error fetching calculations:', error)
+        toast.error('Failed to load saved analyses')
+      } finally {
+        if (isMounted) setLoading(false)
+      }
     }
+
+    fetchData()
+    return () => { isMounted = false }
   }, [userProfile])
-
-  const fetchCalculations = async () => {
-    if (!userProfile?.id) {
-      setLoading(false)
-      return
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('saved_calculations')
-        .select('*')
-        .eq('user_id', userProfile.id)
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-      setCalculations(data || [])
-    } catch (error) {
-      console.error('Error fetching calculations:', error)
-      toast.error('Failed to load saved analyses')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this analysis?')) return

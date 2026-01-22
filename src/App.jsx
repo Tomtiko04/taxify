@@ -37,62 +37,44 @@ function App() {
   useEffect(() => {
     isMounted.current = true;
 
-    // Safety timeout: if loading takes > 3 seconds, just show the app
+    // Safety timeout: if loading takes > 5 seconds, just show the app
     const loadingTimeout = setTimeout(() => {
-      if (isMounted.current) {
-        console.warn("Loading timeout reached - forcing loading to false");
+      if (isMounted.current && loading) {
+        console.warn("Auth check timeout - forcing app to load");
         setLoading(false);
       }
-    }, 3000);
+    }, 5000);
 
-    // Check active session with a timeout/error catch to prevent stuck loading
-    const fetchSession = async () => {
+    const initAuth = async () => {
       try {
-        const {
-          data: { session },
-          error,
-        } = await supabase.auth.getSession();
-
-        // Ignore AbortError
-        if (error?.name === "AbortError") return;
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession();
+        
         if (!isMounted.current) return;
 
         if (error) {
-          console.error("Supabase session error:", error);
+          console.error("Session error:", error);
           clearAuthStorage();
-          setSession(null);
-          setLoading(false);
-          return;
         }
-        
-        // If we have a session, verify it's actually valid
-        if (session) {
-          const { data: { user }, error: userError } = await supabase.auth.getUser();
-          
-          if (!isMounted.current) return;
-          
-          if (userError || !user) {
-            console.warn("Session exists but user verification failed");
-            clearAuthStorage();
-            setSession(null);
-            setLoading(false);
-            return;
-          }
-          
-          // Session is valid
-          setSession(session);
-          const profile = await ensureUserProfile(session.user);
-          if (isMounted.current) {
+
+        if (currentSession) {
+          setSession(currentSession);
+          // Set userProfile as soon as we have session metadata as a fallback
+          const tempProfile = {
+            id: currentSession.user.id,
+            email: currentSession.user.email,
+            full_name: currentSession.user.user_metadata?.full_name || currentSession.user.email?.split("@")[0] || "User",
+            user_type: currentSession.user.user_metadata?.user_type || "individual"
+          };
+          setUserProfile(tempProfile);
+
+          // Then fetch/create the real profile from DB
+          const profile = await ensureUserProfile(currentSession.user);
+          if (isMounted.current && profile) {
             setUserProfile(profile);
           }
-        } else {
-          setSession(null);
         }
       } catch (error) {
-        if (error?.name === "AbortError") return;
-        console.error("Critical error fetching session:", error);
-        clearAuthStorage();
-        setSession(null);
+        console.error("Critical auth error:", error);
       } finally {
         if (isMounted.current) {
           setLoading(false);
@@ -101,41 +83,28 @@ function App() {
       }
     };
 
-    fetchSession();
+    initAuth();
 
-    // Listen for auth changes
-    let subscription = null;
-    try {
-      const { data } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          // Handle sign out
-          if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
-            if (isMounted.current) {
-              setSession(null);
-              setUserProfile(null);
-            }
-            return;
-          }
-          
-          setSession(session);
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      if (!isMounted.current) return;
 
-          // When user signs in (especially via OAuth), ensure profile exists
-          if (session?.user && event === "SIGNED_IN") {
-            const profile = await ensureUserProfile(session.user);
-            if (isMounted.current) {
-              setUserProfile(profile);
-            }
-          }
+      if (event === 'SIGNED_OUT') {
+        setSession(null);
+        setUserProfile(null);
+        clearAuthStorage();
+      } else if (newSession) {
+        setSession(newSession);
+        // Always try to get/create profile if session is present
+        const profile = await ensureUserProfile(newSession.user);
+        if (isMounted.current && profile) {
+          setUserProfile(profile);
         }
-      );
-      subscription = data.subscription;
-    } catch (error) {
-      console.error("Error setting up auth listener:", error);
-    }
+      }
+    });
 
     return () => {
       isMounted.current = false;
-      if (subscription) subscription.unsubscribe();
+      subscription.unsubscribe();
       clearTimeout(loadingTimeout);
     };
   }, []);
@@ -143,179 +112,80 @@ function App() {
   // Helper function to ensure user profile exists
   const ensureUserProfile = async (user) => {
     try {
-      // Wait a moment for trigger to complete
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
       if (!isMounted.current) return null;
 
-      // Check if profile exists
       const { data: existingProfile, error: checkError } = await supabase
         .from("user_profiles")
         .select("*")
         .eq("id", user.id)
         .single();
 
-      if (checkError?.name === "AbortError") return null;
       if (!isMounted.current) return null;
 
-      // If profile doesn't exist, create it
-      if (!existingProfile || checkError?.code === "PGRST116") {
+      if (!existingProfile) {
         const profileData = {
           id: user.id,
           email: user.email || "",
           user_type: user.user_metadata?.user_type || "individual",
-          full_name:
-            user.user_metadata?.full_name ||
-            user.user_metadata?.name ||
-            user.email?.split("@")[0] ||
-            "User",
-          monthly_salary:
-            user.user_metadata?.monthly_salary &&
-            user.user_metadata.monthly_salary !== ""
-              ? parseFloat(user.user_metadata.monthly_salary)
-              : null,
-          company_name: user.user_metadata?.company_name || null,
-          business_type: user.user_metadata?.business_type || null,
-          annual_turnover:
-            user.user_metadata?.annual_turnover &&
-            user.user_metadata.annual_turnover !== ""
-              ? parseFloat(user.user_metadata.annual_turnover)
-              : null,
-          annual_income:
-            user.user_metadata?.annual_income &&
-            user.user_metadata.annual_income !== ""
-              ? parseFloat(user.user_metadata.annual_income)
-              : null,
+          full_name: user.user_metadata?.full_name || user.email?.split("@")[0] || "User",
         };
 
-        if (!isMounted.current) return profileData;
-
-        const { data: newProfile, error: insertError } = await supabase
+        const { data: newProfile, error: upsertError } = await supabase
           .from("user_profiles")
-          .upsert(profileData, {
-            onConflict: "id",
-          })
+          .upsert(profileData)
           .select()
           .single();
 
-        if (insertError?.name === "AbortError") return profileData;
-        if (insertError) {
-          console.error("Error creating/updating user profile:", insertError);
-          return profileData; // Fallback to what we tried to insert
+        if (upsertError) {
+          console.error("Profile upsert error:", upsertError);
+          // Return the profileData as a fallback if upsert fails
+          return { ...profileData };
         }
+
         return newProfile;
-      } else if (existingProfile) {
-        if (!isMounted.current) return existingProfile;
-
-        // Update email if it changed (for OAuth users)
-        const { error: updateError } = await supabase
-          .from("user_profiles")
-          .update({ email: user.email })
-          .eq("id", user.id);
-
-        if (updateError && updateError.name !== "AbortError") {
-          console.error("Error updating user profile email:", updateError);
-        }
-        return { ...existingProfile, email: user.email };
       }
       return existingProfile;
     } catch (error) {
-      // Ignore AbortError - it's expected when navigating away
-      if (error?.name === "AbortError") return null;
-      console.error("Error ensuring user profile:", error);
+      console.error("Profile error:", error);
       return null;
     }
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="w-12 h-12 border-b-2 border-green-600 rounded-full animate-spin"></div>
+      <div className="flex items-center justify-center min-h-screen bg-white">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600 font-medium">Loading Taxify...</p>
+        </div>
       </div>
     );
   }
 
-  // Handle profile updates from Profile page
-  const handleProfileUpdate = (updatedProfile) => {
-    setUserProfile(updatedProfile);
-  };
-
   return (
     <Router>
       <Routes>
-        {/* Public pages with Navbar */}
-        <Route
-          path="/"
-          element={
-            <div className="min-h-screen bg-slate-50">
-              <Navbar session={session} userProfile={userProfile} />
-              <Landing session={session} userProfile={userProfile} />
-              <ScrollToTop />
-            </div>
-          }
-        />
+        <Route path="/" element={
+          <div className="min-h-screen bg-slate-50">
+            <Navbar session={session} userProfile={userProfile} />
+            <Landing session={session} userProfile={userProfile} />
+            <ScrollToTop />
+          </div>
+        } />
         <Route path="/signup" element={<Signup />} />
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={<Login session={session} />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route
-          path="/verify-email"
-          element={
-            <div className="min-h-screen bg-slate-50">
-              {/* <Navbar session={session} userProfile={userProfile} /> */}
-              <VerifyEmail />
-              <ScrollToTop />
-            </div>
-          }
-        />
-        <Route
-          path="/faq"
-          element={
-            <div className="min-h-screen bg-slate-50">
-              <Navbar session={session} userProfile={userProfile} />
-              <FAQ />
-              <ScrollToTop />
-            </div>
-          }
-        />
-        <Route
-          path="/privacy"
-          element={
-            <div className="min-h-screen bg-slate-50">
-              <Navbar session={session} userProfile={userProfile} />
-              <Privacy />
-              <ScrollToTop />
-            </div>
-          }
-        />
-        <Route
-          path="/terms"
-          element={
-            <div className="min-h-screen bg-slate-50">
-              <Navbar session={session} userProfile={userProfile} />
-              <Terms />
-              <ScrollToTop />
-            </div>
-          }
-        />
-        <Route
-          path="/aiSignup"
-          element={
-            <div className="min-h-screen bg-slate-50">
-              <Navbar session={session} userProfile={userProfile} />
-              <ChatbotSignup />
-              <ScrollToTop />
-            </div>
-          }
-        />
-
-        {/* Guest calculators (no login required) */}
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/faq" element={<><Navbar session={session} userProfile={userProfile} /><FAQ /><ScrollToTop /></>} />
+        <Route path="/privacy" element={<><Navbar session={session} userProfile={userProfile} /><Privacy /><ScrollToTop /></>} />
+        <Route path="/terms" element={<><Navbar session={session} userProfile={userProfile} /><Terms /><ScrollToTop /></>} />
         <Route
           path="/personal-calculator"
           element={
             <div className="min-h-screen bg-slate-50">
               <Navbar session={session} userProfile={userProfile} />
-              <PersonalCalculator />
+              <PersonalCalculator session={session} />
               <ScrollToTop />
             </div>
           }
@@ -325,66 +195,47 @@ function App() {
           element={
             <div className="min-h-screen bg-slate-50">
               <Navbar session={session} userProfile={userProfile} />
-              <BusinessCalculator />
+              <BusinessCalculator session={session} />
               <ScrollToTop />
             </div>
           }
         />
 
-        {/* Dashboard routes (protected) */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout userProfile={userProfile}>
-                <Overview userProfile={userProfile} />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard/personal"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout userProfile={userProfile}>
-                <PersonalTax userProfile={userProfile} />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard/business"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout userProfile={userProfile}>
-                <BusinessTax userProfile={userProfile} />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard/history"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout userProfile={userProfile}>
-                <History userProfile={userProfile} />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/dashboard/profile"
-          element={
-            <ProtectedRoute>
-              <DashboardLayout userProfile={userProfile}>
-                <Profile
-                  userProfile={userProfile}
-                  onProfileUpdate={handleProfileUpdate}
-                />
-              </DashboardLayout>
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/dashboard" element={
+          <ProtectedRoute session={session}>
+            <DashboardLayout userProfile={userProfile}>
+              <Overview userProfile={userProfile} />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/personal" element={
+          <ProtectedRoute session={session}>
+            <DashboardLayout userProfile={userProfile}>
+              <PersonalTax userProfile={userProfile} session={session} />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/business" element={
+          <ProtectedRoute session={session}>
+            <DashboardLayout userProfile={userProfile}>
+              <BusinessTax userProfile={userProfile} session={session} />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/history" element={
+          <ProtectedRoute session={session}>
+            <DashboardLayout userProfile={userProfile}>
+              <History userProfile={userProfile} />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/profile" element={
+          <ProtectedRoute session={session}>
+            <DashboardLayout userProfile={userProfile}>
+              <Profile userProfile={userProfile} onProfileUpdate={(p) => setUserProfile(p)} />
+            </DashboardLayout>
+          </ProtectedRoute>
+        } />
       </Routes>
     </Router>
   );

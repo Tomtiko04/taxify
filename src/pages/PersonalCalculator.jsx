@@ -7,55 +7,15 @@ import { savePersonalCalculationData, saveReturnUrl } from "../utils/storage";
 import toast from "react-hot-toast";
 import jsPDF from "jspdf";
 
-export default function PersonalCalculator() {
+export default function PersonalCalculator({ session }) {
   const [monthlyGross, setMonthlyGross] = useState("");
-  const [isDetailed, setIsDetailed] = useState(false);
-  const [basicSalary, setBasicSalary] = useState("");
-  const [housingAllowance, setHousingAllowance] = useState("");
-  const [transportAllowance, setTransportAllowance] = useState("");
-  const [additionalIncomes, setAdditionalIncomes] = useState([
-    { name: "", amount: "" },
-  ]);
-  const [annualRent, setAnnualRent] = useState("");
-  const [hasPension, setHasPension] = useState(true);
-  const [hasNHF, setHasNHF] = useState(true);
-  const [analysisName, setAnalysisName] = useState("");
-  const [results, setResults] = useState(null);
-  const [isSavingCalculation, setIsSavingCalculation] = useState(false);
-  const [session, setSession] = useState(null);
+  // ... other states ...
   const [activeTab, setActiveTab] = useState("calculator");
   const navigate = useNavigate();
-  const isMounted = useRef(true);
   const resultsRef = useRef(null);
 
-  useEffect(() => {
-    isMounted.current = true;
-    supabase.auth
-      .getSession()
-      .then(({ data: { session }, error }) => {
-        if (error?.name === "AbortError" || !isMounted.current) return;
-        if (isMounted.current) setSession(session);
-      })
-      .catch((err) => {
-        if (err?.name !== "AbortError") console.error(err);
-      });
-
-    let subscription = null;
-    try {
-      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (isMounted.current) setSession(session);
-      });
-      subscription = data?.subscription;
-    } catch (err) {
-      console.error("Auth listener error:", err);
-    }
-
-    return () => {
-      isMounted.current = false;
-      if (subscription) subscription.unsubscribe();
-    };
-  }, []);
-
+  // Remove the useEffect auth listener as it's now handled by App.jsx
+  
   const handleCalculate = (e) => {
     e.preventDefault();
 
@@ -144,8 +104,8 @@ export default function PersonalCalculator() {
       };
       if (savePersonalCalculationData(calcData)) {
         saveReturnUrl("/personal-calculator");
-        toast.loading("Redirecting to signup...", { id: "signup-redirect" });
-        navigate("/signup?return=personal-calculator");
+        toast.loading("Redirecting to login...", { id: "login-redirect" });
+        navigate("/login?return=/personal-calculator");
       } else {
         toast.error("Failed to save. Please try again.");
       }
@@ -1157,6 +1117,16 @@ export default function PersonalCalculator() {
                             PDF
                           </button>
                         </div>
+
+                        {!session && (
+                          <div className="mt-4 pt-4 border-t border-slate-100 text-center">
+                            <p className="text-xs text-slate-500 mb-2">Login to save your analyses permanently</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              <Link to="/login?return=/personal-calculator" className="py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors">Login</Link>
+                              <Link to="/signup?return=/personal-calculator" className="py-2 bg-slate-100 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-200 transition-colors">Sign Up</Link>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   ) : (

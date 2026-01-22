@@ -14,45 +14,51 @@ export default function Overview({ userProfile }) {
     const fetchData = async () => {
       if (!userProfile?.id) return
 
+      setLoading(true)
       try {
-        // Fetch recent calculations
-        const { data: calculations, error } = await supabase
+        // Fetch all calculations for stats
+        const { data: allCalcs, error: statsError } = await supabase
           .from('saved_calculations')
           .select('*')
           .eq('user_id', userProfile.id)
           .order('created_at', { ascending: false })
-          .limit(5)
 
-        if (error) throw error
+        if (statsError) throw statsError
 
-        setRecentCalculations(calculations || [])
+        if (isMounted) {
+          setRecentCalculations(allCalcs.slice(0, 5) || [])
 
-        // Calculate stats
-        const allCalcs = calculations || []
-        const thisMonth = allCalcs.filter(c => {
-          const calcDate = new Date(c.created_at)
+          // Calculate stats
           const now = new Date()
-          return calcDate.getMonth() === now.getMonth() && calcDate.getFullYear() === now.getFullYear()
-        })
-        
-        const totalTax = allCalcs.reduce((sum, c) => {
-          const tax = c.data?.totalTax || c.data?.netTax || 0
-          return sum + tax
-        }, 0)
+          const thisMonth = allCalcs.filter(c => {
+            const calcDate = new Date(c.created_at)
+            return calcDate.getMonth() === now.getMonth() && calcDate.getFullYear() === now.getFullYear()
+          })
+          
+          const totalTax = allCalcs.reduce((sum, c) => {
+            const tax = c.data?.totalTax || c.data?.netTax || 0
+            return sum + tax
+          }, 0)
 
-        setStats({
-          total: allCalcs.length,
-          thisMonth: thisMonth.length,
-          totalTaxCalculated: totalTax
-        })
+          setStats({
+            total: allCalcs.length,
+            thisMonth: thisMonth.length,
+            totalTaxCalculated: totalTax
+          })
+        }
       } catch (error) {
-        console.error('Error fetching data:', error)
+        console.error('Error fetching dashboard data:', error)
       } finally {
-        setLoading(false)
+        if (isMounted) {
+          setLoading(false)
+        }
       }
     }
 
+    // Add isMounted tracking
+    let isMounted = true
     fetchData()
+    return () => { isMounted = false }
   }, [userProfile])
 
   const formatDate = (dateString) => {

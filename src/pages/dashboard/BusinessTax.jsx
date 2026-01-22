@@ -5,7 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { saveBusinessCalculationData, getBusinessCalculationData, saveReturnUrl } from '../../utils/storage'
 import toast from 'react-hot-toast'
 
-export default function BusinessTax({ userProfile }) {
+export default function BusinessTax({ userProfile, session }) {
   const navigate = useNavigate()
   const [mode, setMode] = useState(null) // 'ai' or 'manual'
   const [turnover, setTurnover] = useState('')
@@ -27,6 +27,11 @@ export default function BusinessTax({ userProfile }) {
     whtNotes: null
   })
   const isMounted = useRef(true)
+
+  useEffect(() => {
+    isMounted.current = true
+    return () => { isMounted = false }
+  }, [])
 
   // Restore calculation data after signup/login
   useEffect(() => {

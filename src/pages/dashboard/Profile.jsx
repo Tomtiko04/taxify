@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../../lib/supabase";
-import { formatCurrency } from "../../utils/taxCalculations";
+import { formatCurrency, formatNumberWithCommas, parseFormattedNumber } from "../../utils/taxCalculations";
 import toast from "react-hot-toast";
 
 export default function Profile({ userProfile, onProfileUpdate }) {

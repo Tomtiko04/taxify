@@ -7,7 +7,7 @@ import { savePersonalCalculationData, getPersonalCalculationData, saveReturnUrl 
 import toast from 'react-hot-toast'
 import jsPDF from 'jspdf'
 
-export default function PersonalTax({ userProfile }) {
+export default function PersonalTax({ userProfile, session }) {
   const navigate = useNavigate()
   const [monthlyGross, setMonthlyGross] = useState(userProfile?.monthly_salary ? formatNumberWithCommas(userProfile.monthly_salary.toString()) : '')
   const [isDetailed, setIsDetailed] = useState(false)
@@ -21,33 +21,13 @@ export default function PersonalTax({ userProfile }) {
   const [analysisName, setAnalysisName] = useState('')
   const [results, setResults] = useState(null)
   const [isSavingCalculation, setIsSavingCalculation] = useState(false)
-  const [session, setSession] = useState(null)
   const [showTaxInfo, setShowTaxInfo] = useState(false)
   const isMounted = useRef(true)
 
+  // Remove the initial auth useEffect, only keep the restoration one
   useEffect(() => {
     isMounted.current = true
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error?.name === 'AbortError' || !isMounted.current) return
-      setSession(session)
-    }).catch(err => {
-      if (err?.name !== 'AbortError') console.error(err)
-    })
-    
-    let subscription = null
-    try {
-      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (isMounted.current) setSession(session)
-      })
-      subscription = data?.subscription
-    } catch (err) {
-      console.error('Auth listener error:', err)
-    }
-    
-    return () => {
-      isMounted.current = false
-      if (subscription) subscription.unsubscribe()
-    }
+    return () => { isMounted.current = false }
   }, [])
 
   useEffect(() => {
