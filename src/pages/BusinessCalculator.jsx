@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { calculateCIT, formatCurrency, formatNumberWithCommas, parseFormattedNumber } from '../utils/taxCalculations'
-import { supabase, clearAuthStorage } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
 export default function BusinessCalculator({ session }) {
@@ -69,32 +69,7 @@ export default function BusinessCalculator({ session }) {
     }
   ]
 
-  // Check session on mount
-  useEffect(() => {
-    isMounted.current = true
-    
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error?.name === 'AbortError' || !isMounted.current) return
-      setSession(session)
-    }).catch(err => {
-      if (err?.name !== 'AbortError') console.error(err)
-    })
-    
-    let subscription = null
-    try {
-      const { data } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (isMounted.current) setSession(session)
-      })
-      subscription = data?.subscription
-    } catch (err) {
-      console.error('Auth listener error:', err)
-    }
-    
-    return () => {
-      isMounted.current = false
-      if (subscription) subscription.unsubscribe()
-    }
-  }, [])
+  // Session is now handled by App.jsx and passed as a prop
 
   const handleCalculate = (e) => {
     if (e) e.preventDefault()

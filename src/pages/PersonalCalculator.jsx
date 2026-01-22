@@ -9,7 +9,17 @@ import jsPDF from "jspdf";
 
 export default function PersonalCalculator({ session }) {
   const [monthlyGross, setMonthlyGross] = useState("");
-  // ... other states ...
+  const [basicSalary, setBasicSalary] = useState("");
+  const [housingAllowance, setHousingAllowance] = useState("");
+  const [transportAllowance, setTransportAllowance] = useState("");
+  const [isDetailed, setIsDetailed] = useState(false);
+  const [additionalIncomes, setAdditionalIncomes] = useState([{ name: "", amount: "" }]);
+  const [annualRent, setAnnualRent] = useState("");
+  const [hasPension, setHasPension] = useState(true);
+  const [hasNHF, setHasNHF] = useState(true);
+  const [analysisName, setAnalysisName] = useState("");
+  const [results, setResults] = useState(null);
+  const [isSavingCalculation, setIsSavingCalculation] = useState(false);
   const [activeTab, setActiveTab] = useState("calculator");
   const navigate = useNavigate();
   const resultsRef = useRef(null);

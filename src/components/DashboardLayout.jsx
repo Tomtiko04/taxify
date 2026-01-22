@@ -84,6 +84,8 @@ export default function DashboardLayout({ children, userProfile }) {
       
       // Then sign out from Supabase (this might fail if session is already invalid, but that's ok)
       try {
+        toast.success('Signed out successfully')
+        window.location.reload();
         await supabase.auth.signOut({ scope: 'global' })
       } catch (signOutError) {
         console.warn('SignOut API call failed (session may already be invalid):', signOutError)
