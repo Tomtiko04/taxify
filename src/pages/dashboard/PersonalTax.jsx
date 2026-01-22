@@ -10,13 +10,17 @@ import jsPDF from 'jspdf'
 export default function PersonalTax({ userProfile }) {
   const navigate = useNavigate()
   const [monthlyGross, setMonthlyGross] = useState(userProfile?.monthly_salary ? formatNumberWithCommas(userProfile.monthly_salary.toString()) : '')
+  const [isDetailed, setIsDetailed] = useState(false)
+  const [basicSalary, setBasicSalary] = useState('')
+  const [housingAllowance, setHousingAllowance] = useState('')
+  const [transportAllowance, setTransportAllowance] = useState('')
   const [additionalIncomes, setAdditionalIncomes] = useState([{ name: '', amount: '' }])
   const [annualRent, setAnnualRent] = useState('')
   const [hasPension, setHasPension] = useState(true)
   const [hasNHF, setHasNHF] = useState(true)
   const [analysisName, setAnalysisName] = useState('')
   const [results, setResults] = useState(null)
-  const [saving, setSaving] = useState(false)
+  const [isSavingCalculation, setIsSavingCalculation] = useState(false)
   const [session, setSession] = useState(null)
   const [showTaxInfo, setShowTaxInfo] = useState(false)
   const isMounted = useRef(true)
@@ -58,8 +62,19 @@ export default function PersonalTax({ userProfile }) {
         setHasNHF(savedData.hasNHF !== undefined ? savedData.hasNHF : true)
         setAnalysisName(savedData.analysisName || '')
         
-        if (savedData.monthlyGross) {
-          const monthlyValue = parseFormattedNumber(savedData.monthlyGross)
+        if (savedData.monthlyGross || savedData.isDetailed) {
+          const basicValue = parseFormattedNumber(savedData.basicSalary || '')
+          const housingValue = parseFormattedNumber(savedData.housingAllowance || '')
+          const transportValue = parseFormattedNumber(savedData.transportAllowance || '')
+          
+          const monthlyValue = savedData.isDetailed 
+            ? (basicValue + housingValue + transportValue)
+            : parseFormattedNumber(savedData.monthlyGross || '')
+
+          const pensionBase = savedData.isDetailed 
+            ? (basicValue + housingValue + transportValue)
+            : monthlyValue
+
           const additionalTotal = (savedData.additionalIncomes || []).reduce((sum, item) => sum + parseFormattedNumber(item.amount), 0)
           const rentValue = parseFormattedNumber(savedData.annualRent)
           if (monthlyValue > 0 || additionalTotal > 0) {
@@ -67,7 +82,8 @@ export default function PersonalTax({ userProfile }) {
               monthlyValue, rentValue,
               savedData.hasPension !== undefined ? savedData.hasPension : true,
               savedData.hasNHF !== undefined ? savedData.hasNHF : true,
-              additionalTotal
+              additionalTotal,
+              pensionBase
             )
             if (isMounted.current) {
               setResults(calculation)
@@ -81,16 +97,27 @@ export default function PersonalTax({ userProfile }) {
 
   const handleCalculate = (e) => {
     e.preventDefault()
-    const monthlyValue = parseFormattedNumber(monthlyGross)
+    const basicValue = parseFormattedNumber(basicSalary)
+    const housingValue = parseFormattedNumber(housingAllowance)
+    const transportValue = parseFormattedNumber(transportAllowance)
+    
+    const monthlyValue = isDetailed 
+      ? (basicValue + housingValue + transportValue)
+      : parseFormattedNumber(monthlyGross)
+
+    const pensionBase = isDetailed 
+      ? (basicValue + housingValue + transportValue)
+      : monthlyValue
+
     const additionalTotal = additionalIncomes.reduce((sum, item) => sum + parseFormattedNumber(item.amount), 0)
     const rentValue = parseFormattedNumber(annualRent)
 
     if (monthlyValue <= 0 && additionalTotal <= 0) {
-      toast.error('Please enter your monthly salary')
+      toast.error('Please enter your salary details')
       return
     }
 
-    const calculation = calculatePAYE(monthlyValue, rentValue, hasPension, hasNHF, additionalTotal)
+    const calculation = calculatePAYE(monthlyValue, rentValue, hasPension, hasNHF, additionalTotal, pensionBase)
     setResults(calculation)
     toast.success('Tax calculated!')
   }
@@ -122,7 +149,19 @@ export default function PersonalTax({ userProfile }) {
     }
 
     if (!session?.user) {
-      const calcData = { monthlyGross, additionalIncomes, annualRent, hasPension, hasNHF, analysisName, results }
+      const calcData = { 
+        monthlyGross, 
+        basicSalary,
+        housingAllowance,
+        transportAllowance,
+        isDetailed,
+        additionalIncomes, 
+        annualRent, 
+        hasPension, 
+        hasNHF, 
+        analysisName, 
+        results 
+      }
       if (savePersonalCalculationData(calcData)) {
         saveReturnUrl('/dashboard/personal')
         toast.loading('Redirecting to signup...', { id: 'signup-redirect' })
@@ -133,7 +172,7 @@ export default function PersonalTax({ userProfile }) {
       return
     }
 
-    setSaving(true)
+    setIsSavingCalculation(true)
     try {
       const { error } = await supabase
         .from('saved_calculations')
@@ -143,7 +182,15 @@ export default function PersonalTax({ userProfile }) {
           data: results,
           inputs: {
             name: analysisName || `Personal Tax - ${new Date().toLocaleDateString('en-NG')}`,
-            monthlyGross, additionalIncomes, annualRent, hasPension, hasNHF
+            monthlyGross,
+            basicSalary,
+            housingAllowance,
+            transportAllowance,
+            isDetailed,
+            additionalIncomes,
+            annualRent,
+            hasPension,
+            hasNHF
           }
         })
 
@@ -155,7 +202,7 @@ export default function PersonalTax({ userProfile }) {
       console.error('Save error:', error)
       toast.error('Failed to save')
     } finally {
-      setSaving(false)
+      setIsSavingCalculation(false);
     }
   }
 
@@ -357,6 +404,10 @@ export default function PersonalTax({ userProfile }) {
   const resetForm = () => {
     setResults(null)
     setMonthlyGross(userProfile?.monthly_salary ? formatNumberWithCommas(userProfile.monthly_salary.toString()) : '')
+    setBasicSalary('')
+    setHousingAllowance('')
+    setTransportAllowance('')
+    setIsDetailed(false)
     setAdditionalIncomes([{ name: '', amount: '' }])
     setAnnualRent('')
     setHasPension(true)
@@ -508,23 +559,82 @@ export default function PersonalTax({ userProfile }) {
                   />
                 </div>
 
-                {/* Monthly Salary */}
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                    Monthly Gross Salary <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">₦</span>
-                    <input
-                      type="text"
-                      value={monthlyGross}
-                      onChange={(e) => setMonthlyGross(formatNumberWithCommas(e.target.value))}
-                      className="w-full pl-10 pr-4 py-2.5 text-lg font-semibold border border-slate-200 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-500/20 focus:outline-none"
-                      placeholder="500,000"
-                      required
-                    />
+                {/* Calculation Mode Toggle */}
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 mb-6 font-medium">
+                  <div>
+                    <h4 className="text-sm font-semibold text-slate-900">Detailed Salary Breakdown</h4>
+                    <p className="text-xs text-slate-500">Break down your salary for more accurate pension calculation</p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsDetailed(!isDetailed)}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${isDetailed ? 'bg-green-600' : 'bg-slate-200'}`}
+                  >
+                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${isDetailed ? 'translate-x-5' : 'translate-x-0'}`} />
+                  </button>
                 </div>
+
+                {isDetailed ? (
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <div>
+                      <label className="block mb-2 text-xs font-medium text-slate-700">Basic Salary (Monthly)</label>
+                      <div className="relative">
+                        <span className="absolute -translate-y-1/2 left-3 top-1/2 text-slate-400 text-xs">₦</span>
+                        <input
+                          type="text"
+                          value={basicSalary}
+                          onChange={(e) => setBasicSalary(formatNumberWithCommas(e.target.value))}
+                          className="w-full py-2 pl-7 pr-3 text-sm transition-all border border-slate-200 rounded-lg focus:border-green-500 focus:outline-none"
+                          placeholder="250,000"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block mb-2 text-xs font-medium text-slate-700">Housing (Monthly)</label>
+                      <div className="relative">
+                        <span className="absolute -translate-y-1/2 left-3 top-1/2 text-slate-400 text-xs">₦</span>
+                        <input
+                          type="text"
+                          value={housingAllowance}
+                          onChange={(e) => setHousingAllowance(formatNumberWithCommas(e.target.value))}
+                          className="w-full py-2 pl-7 pr-3 text-sm transition-all border border-slate-200 rounded-lg focus:border-green-500 focus:outline-none"
+                          placeholder="150,000"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block mb-2 text-xs font-medium text-slate-700">Transport (Monthly)</label>
+                      <div className="relative">
+                        <span className="absolute -translate-y-1/2 left-3 top-1/2 text-slate-400 text-xs">₦</span>
+                        <input
+                          type="text"
+                          value={transportAllowance}
+                          onChange={(e) => setTransportAllowance(formatNumberWithCommas(e.target.value))}
+                          className="w-full py-2 pl-7 pr-3 text-sm transition-all border border-slate-200 rounded-lg focus:border-green-500 focus:outline-none"
+                          placeholder="100,000"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* Monthly Salary */
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Monthly Gross Salary <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">₦</span>
+                      <input
+                        type="text"
+                        value={monthlyGross}
+                        onChange={(e) => setMonthlyGross(formatNumberWithCommas(e.target.value))}
+                        className="w-full pl-10 pr-4 py-2.5 text-lg font-semibold border border-slate-200 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-500/20 focus:outline-none"
+                        placeholder="500,000"
+                        required={!isDetailed}
+                      />
+                    </div>
+                  </div>
+                )}
 
                 {/* Deductions */}
                 <div className="bg-slate-50 rounded-xl p-4">
@@ -544,8 +654,18 @@ export default function PersonalTax({ userProfile }) {
                       }`}>
                         {hasPension && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                       </div>
-                      <div>
-                        <span className="font-medium text-slate-900 text-sm">Pension (8%)</span>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-slate-900 text-sm">Pension (8%)</span>
+                          <div className="group relative">
+                            <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div className="absolute bottom-full right-0 mb-2 w-48 p-2 bg-slate-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
+                              Every Naira in Pension is 100% Tax-Free.
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </label>
 
@@ -578,9 +698,9 @@ export default function PersonalTax({ userProfile }) {
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500">₦</span>
                     <input
-                      type="number"
+                      type="text"
                       value={annualRent}
-                      onChange={(e) => setAnnualRent(e.target.value)}
+                      onChange={(e) => setAnnualRent(formatNumberWithCommas(e.target.value))}
                       className="w-full pl-10 pr-4 py-2.5 border border-slate-200 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-500/20 focus:outline-none"
                       placeholder="1,200,000"
                     />
@@ -651,46 +771,96 @@ export default function PersonalTax({ userProfile }) {
             {results ? (
               <div>
                 {/* Result Header */}
-                <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-5 text-white">
+                <div className="bg-gradient-to-br from-emerald-600 to-green-700 p-5 text-white">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-green-100 text-sm font-medium">Monthly Tax</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-green-100">Monthly Take-Home</span>
                     <button onClick={resetForm} className="text-green-100 hover:text-white text-xs underline">
                       Reset
                     </button>
                   </div>
-                  <div className="text-3xl font-bold mb-1">
-                    {formatCurrency(results.monthlyTax || 0)}
+                  <div className="text-3xl font-extrabold mb-1">
+                    {formatCurrency(results.netMonthly || 0)}
                   </div>
-                  <div className="flex gap-4 text-sm text-green-100">
-                    <span>Annual: <strong className="text-white">{formatCurrency(results.netTax || 0)}</strong></span>
-                    <span>Rate: <strong className="text-white">{(results.effectiveRate || 0).toFixed(1)}%</strong></span>
+                  <div className="flex gap-4 text-sm text-green-50">
+                    <span>Yearly: <strong className="text-white">{formatCurrency(results.netAnnual || 0)}</strong></span>
                   </div>
                 </div>
 
                 <div className="p-5 space-y-4">
-                  {/* Tax Exempt */}
-                  {results.taxableIncome <= 800000 && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center">
-                      <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span className="text-green-700 font-medium text-sm">Tax Exempt (Income below ₦800K)</span>
+                  {/* Analysis Breakdown */}
+                  <div className="space-y-4">
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Net Income</span>
+                        <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-[9px] font-bold rounded-full uppercase">Take-Home</span>
+                      </div>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-2xl font-bold text-slate-900">{formatCurrency(results.netMonthly)}</span>
+                        <span className="text-xs text-slate-500 font-medium">/ month</span>
+                      </div>
                     </div>
-                  )}
 
-                  {/* Summary */}
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between py-2 border-b border-slate-100">
-                      <span className="text-slate-600">Annual Gross</span>
-                      <span className="font-semibold">{formatCurrency(results.annualGross)}</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="p-3 bg-blue-50/50 rounded-lg border border-blue-100 text-center">
+                        <span className="block text-[9px] font-bold text-blue-600 uppercase mb-1">Tax Savings</span>
+                        <span className="block text-sm font-bold text-blue-700">{formatCurrency(results.totalDeductions || 0)}</span>
+                      </div>
+                      <div className="p-3 bg-rose-50/50 rounded-lg border border-rose-100 text-center">
+                        <span className="block text-[9px] font-bold text-rose-600 uppercase mb-1">Monthly Tax</span>
+                        <span className="block text-sm font-bold text-rose-700">{formatCurrency(results.monthlyTax || 0)}</span>
+                      </div>
+                      <div className="p-3 bg-emerald-50/50 rounded-lg border border-emerald-100 text-center">
+                        <span className="block text-[9px] font-bold text-emerald-600 uppercase mb-1">Net Rate</span>
+                        <span className="block text-sm font-bold text-emerald-700">{(results.effectiveRate || 0).toFixed(1)}%</span>
+                      </div>
                     </div>
-                    <div className="flex justify-between py-2 border-b border-slate-100 text-green-600">
-                      <span>Deductions</span>
-                      <span className="font-semibold">-{formatCurrency(results.totalDeductions || 0)}</span>
+                  </div>
+
+                  {/* Detailed Table */}
+                  <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center">
+                        <svg className="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <h4 className="text-xs font-semibold text-slate-900">Detailed Breakdown</h4>
                     </div>
-                    <div className="flex justify-between py-2">
-                      <span className="text-slate-900 font-medium">Taxable Income</span>
-                      <span className="font-bold">{formatCurrency(results.taxableIncome)}</span>
+                    
+                    <div className="space-y-2 text-xs">
+                      <div className="flex justify-between items-center py-2 px-2.5 bg-slate-50 rounded-lg">
+                        <span className="text-slate-600">Gross (Annual)</span>
+                        <span className="font-bold text-slate-900">{formatCurrency(results.annualGross)}</span>
+                      </div>
+                      
+                      {results.pension > 0 && (
+                        <div className="flex justify-between items-center py-1.5 px-2">
+                          <span className="text-slate-500 flex items-center">
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2"></div>
+                            Pension (8%)
+                          </span>
+                          <span className="font-semibold text-slate-700">-{formatCurrency(results.pension)}</span>
+                        </div>
+                      )}
+                      {results.nhf > 0 && (
+                        <div className="flex justify-between items-center py-1.5 px-2">
+                          <span className="text-slate-500 flex items-center">
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mr-2"></div>
+                            NHF (2.5%)
+                          </span>
+                          <span className="font-semibold text-slate-700">-{formatCurrency(results.nhf)}</span>
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between items-center py-2 px-2.5 bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg border border-slate-200">
+                        <span className="text-slate-700 font-medium">Taxable Income</span>
+                        <span className="font-bold text-slate-900">{formatCurrency(results.taxableIncome)}</span>
+                      </div>
+                      
+                      <div className="flex justify-between items-center py-2.5 px-2.5 bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg border border-slate-200">
+                        <span className="text-slate-700 font-bold">Annual Tax</span>
+                        <span className="font-extrabold text-slate-900">{formatCurrency(results.netTax)}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -698,23 +868,23 @@ export default function PersonalTax({ userProfile }) {
                   <div className="grid grid-cols-2 gap-2 pt-3">
                     <button
                       onClick={handleSave}
-                      disabled={saving}
-                      className="py-2.5 bg-green-600 text-white font-medium rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center text-sm"
+                      disabled={isSavingCalculation}
+                      className="flex items-center justify-center py-3 text-sm font-medium text-white transition-colors bg-green-600 rounded-xl hover:bg-green-700"
                     >
-                      {saving ? (
+                      {isSavingCalculation ? (
                         <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                       ) : (
                         <>
                           <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
                           </svg>
-                          Save
+                          Save Analysis
                         </>
                       )}
                     </button>
                     <button
                       onClick={handleDownload}
-                      className="py-2.5 bg-slate-100 text-slate-700 font-medium rounded-lg hover:bg-slate-200 transition-colors flex items-center justify-center text-sm"
+                      className="flex items-center justify-center py-3 text-sm font-medium transition-colors bg-slate-100 text-slate-700 rounded-xl hover:bg-slate-200"
                     >
                       <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />

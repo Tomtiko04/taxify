@@ -5,15 +5,20 @@
  * @param {boolean} hasPension - Whether employee contributes to pension
  * @param {boolean} hasNHF - Whether employee contributes to NHF
  * @param {number} additionalIncome - Additional annual income from other sources
+ * @param {number} pensionBase - Optional: Custom base for pension calculation (e.g. BHT)
+ * @param {number} nhfBase - Optional: Custom base for NHF calculation
  * @returns {object} Tax calculation breakdown
  */
-export function calculatePAYE(monthlyGross, annualRent = 0, hasPension = true, hasNHF = true, additionalIncome = 0) {
+export function calculatePAYE(monthlyGross, annualRent = 0, hasPension = true, hasNHF = true, additionalIncome = 0, pensionBase = null, nhfBase = null) {
   const annualSalary = monthlyGross * 12
   const annualGross = annualSalary + (additionalIncome || 0)
   
   // Deductions
-  const pensionDeduction = hasPension ? annualGross * 0.08 : 0
-  const nhfDeduction = hasNHF ? annualGross * 0.025 : 0
+  const pensionBasis = pensionBase !== null ? (pensionBase * 12) : annualGross
+  const nhfBasis = nhfBase !== null ? (nhfBase * 12) : annualGross
+
+  const pensionDeduction = hasPension ? pensionBasis * 0.08 : 0
+  const nhfDeduction = hasNHF ? nhfBasis * 0.025 : 0
   
   // Rent Relief: 20% of annual rent, capped at ₦500,000
   const rentRelief = Math.min(annualRent * 0.20, 500000)
@@ -69,7 +74,7 @@ export function calculatePAYE(monthlyGross, annualRent = 0, hasPension = true, h
   }
   
   const monthlyTax = tax / 12
-  const netAnnual = annualGross - totalDeductions - tax
+  const netAnnual = annualGross - pensionDeduction - nhfDeduction - tax
   const netMonthly = netAnnual / 12
   
   // Build breakdown array for display
