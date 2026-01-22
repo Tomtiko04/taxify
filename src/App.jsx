@@ -5,7 +5,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "./lib/supabase";
+import { supabase, clearAuthStorage } from "./lib/supabase";
 import Landing from "./pages/Landing";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
@@ -59,17 +59,40 @@ function App() {
 
         if (error) {
           console.error("Supabase session error:", error);
+          clearAuthStorage();
+          setSession(null);
+          setLoading(false);
+          return;
         }
-        setSession(session);
-        if (session?.user) {
+        
+        // If we have a session, verify it's actually valid
+        if (session) {
+          const { data: { user }, error: userError } = await supabase.auth.getUser();
+          
+          if (!isMounted.current) return;
+          
+          if (userError || !user) {
+            console.warn("Session exists but user verification failed");
+            clearAuthStorage();
+            setSession(null);
+            setLoading(false);
+            return;
+          }
+          
+          // Session is valid
+          setSession(session);
           const profile = await ensureUserProfile(session.user);
           if (isMounted.current) {
             setUserProfile(profile);
           }
+        } else {
+          setSession(null);
         }
       } catch (error) {
         if (error?.name === "AbortError") return;
         console.error("Critical error fetching session:", error);
+        clearAuthStorage();
+        setSession(null);
       } finally {
         if (isMounted.current) {
           setLoading(false);
@@ -84,18 +107,23 @@ function App() {
     let subscription = null;
     try {
       const { data } = supabase.auth.onAuthStateChange(
-        async (_event, session) => {
+        async (event, session) => {
+          // Handle sign out
+          if (event === "SIGNED_OUT" || (event === "TOKEN_REFRESHED" && !session)) {
+            if (isMounted.current) {
+              setSession(null);
+              setUserProfile(null);
+            }
+            return;
+          }
+          
           setSession(session);
 
           // When user signs in (especially via OAuth), ensure profile exists
-          if (session?.user && _event === "SIGNED_IN") {
+          if (session?.user && event === "SIGNED_IN") {
             const profile = await ensureUserProfile(session.user);
             if (isMounted.current) {
               setUserProfile(profile);
-            }
-          } else if (_event === "SIGNED_OUT") {
-            if (isMounted.current) {
-              setUserProfile(null);
             }
           }
         }

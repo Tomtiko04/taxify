@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+import { supabase, clearAuthStorage } from '../lib/supabase'
 
 export default function ProtectedRoute({ children }) {
   const [session, setSession] = useState(undefined) // undefined = loading, null = no session
@@ -11,24 +11,20 @@ export default function ProtectedRoute({ children }) {
   useEffect(() => {
     isMounted.current = true
 
-    // Check if there's a session token in localStorage first
-    // This helps us know if we should wait for session restoration
-    const checkLocalStorage = () => {
+    // Check if there's a session token in localStorage
+    const hasStoredToken = () => {
       try {
-        const storageKey = `sb-${import.meta.env.VITE_SUPABASE_URL?.split('//')[1]?.split('.')[0]}-auth-token`
-        const stored = localStorage.getItem(storageKey)
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored)
-            return parsed?.access_token ? true : false
-          } catch {
-            return false
-          }
+        // Check for our custom storage key
+        const customToken = localStorage.getItem('taxify-auth-token')
+        if (customToken) {
+          const parsed = JSON.parse(customToken)
+          return parsed?.access_token ? true : false
         }
-        // Also check for the standard Supabase auth token format
+        
+        // Check for any Supabase auth tokens
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i)
-          if (key && key.includes('supabase.auth.token')) {
+          if (key && (key.includes('supabase') || key.includes('sb-') || key.includes('auth-token'))) {
             return true
           }
         }
@@ -38,38 +34,65 @@ export default function ProtectedRoute({ children }) {
       }
     }
 
-    const hasStoredToken = checkLocalStorage()
+    const storedTokenExists = hasStoredToken()
 
-    // Safety timeout - longer if we have a stored token (session restoration)
-    // This prevents the page from being stuck indefinitely
+    // Safety timeout to prevent infinite loading
     timeoutRef.current = setTimeout(() => {
       if (isMounted.current && session === undefined) {
-        console.warn('Auth check timeout - redirecting to login')
+        console.warn('Auth check timeout - clearing stale tokens and redirecting to login')
+        clearAuthStorage()
         setSession(null)
       }
-    }, hasStoredToken ? 5000 : 2000) // 5 seconds if token exists, 2 seconds if not
+    }, storedTokenExists ? 8000 : 3000)
 
-    // Check session - give Supabase a moment to restore from localStorage
+    // Check and validate session
     const checkSession = async () => {
-      // Small delay to allow Supabase to initialize and restore session from localStorage
-      if (hasStoredToken) {
-        await new Promise(resolve => setTimeout(resolve, 100))
-      }
-      
       try {
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession()
+        // First, try to get the session
+        const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession()
         
         if (!isMounted.current) return
         
-        if (error) {
-          console.error('Session check error:', error)
+        if (sessionError) {
+          console.error('Session check error:', sessionError)
+          clearAuthStorage()
           setSession(null)
-        } else {
-          setSession(currentSession)
+          return
         }
+        
+        if (!currentSession) {
+          // No session found, clear any stale storage
+          if (storedTokenExists) {
+            clearAuthStorage()
+          }
+          setSession(null)
+          return
+        }
+        
+        // Session exists, verify it's still valid by trying to get user
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+        
+        if (!isMounted.current) return
+        
+        if (userError || !user) {
+          console.warn('Session exists but user verification failed, clearing session')
+          clearAuthStorage()
+          try {
+            await supabase.auth.signOut({ scope: 'local' })
+          } catch (e) {
+            // Ignore signout errors
+          }
+          setSession(null)
+          return
+        }
+        
+        // Session is valid
+        setSession(currentSession)
+        
       } catch (error) {
         if (!isMounted.current) return
         console.error('Error checking session:', error)
+        clearAuthStorage()
         setSession(null)
       } finally {
         if (timeoutRef.current) {
@@ -81,9 +104,14 @@ export default function ProtectedRoute({ children }) {
     checkSession()
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
       if (isMounted.current) {
-        setSession(newSession)
+        if (event === 'SIGNED_OUT' || event === 'TOKEN_REFRESHED' && !newSession) {
+          clearAuthStorage()
+          setSession(null)
+        } else {
+          setSession(newSession)
+        }
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current)
         }

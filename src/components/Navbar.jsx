@@ -1,6 +1,6 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, clearAuthStorage } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
 export default function Navbar({ session, userProfile }) {
@@ -27,22 +27,26 @@ export default function Navbar({ session, userProfile }) {
 
   const handleSignOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
+      // Clear all auth storage first
+      clearAuthStorage()
       
-      // Clear any cached calculation data
-      localStorage.removeItem('personalCalculationData')
-      localStorage.removeItem('businessCalculationData')
+      // Then sign out from Supabase (this might fail if session is already invalid, but that's ok)
+      try {
+        await supabase.auth.signOut({ scope: 'global' })
+      } catch (signOutError) {
+        console.warn('SignOut API call failed (session may already be invalid):', signOutError)
+      }
       
       toast.success('Signed out successfully')
+      
       // Navigate to home and reload to clear all state
-      navigate('/', { replace: true })
-      setTimeout(() => {
-        window.location.reload()
-      }, 100)
+      window.location.href = '/'
     } catch (error) {
       console.error('Sign out error:', error)
-      toast.error('Failed to sign out. Please try again.')
+      // Even if there's an error, clear storage and redirect
+      clearAuthStorage()
+      toast.error('Session cleared. Redirecting...')
+      window.location.href = '/'
     }
   }
 

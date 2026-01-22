@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { supabase } from "../lib/supabase";
+import { supabase, clearAuthStorage } from "../lib/supabase";
 import toast from "react-hot-toast";
 
 export default function Login() {
@@ -11,11 +11,64 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
   const [touched, setTouched] = useState({});
+  const [checkingSession, setCheckingSession] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
+  const isMounted = useRef(true);
 
   // Get the redirect path from location state (if redirected from protected route)
   const from = location.state?.from || "/dashboard";
+
+  // Check for existing valid session on mount
+  useEffect(() => {
+    isMounted.current = true;
+    
+    const checkExistingSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (!isMounted.current) return;
+        
+        if (error || !session) {
+          // No valid session, clear any stale tokens and show login form
+          clearAuthStorage();
+          setCheckingSession(false);
+          return;
+        }
+        
+        // Verify the session is actually valid
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (!isMounted.current) return;
+        
+        if (userError || !user) {
+          // Session is stale, clear it
+          clearAuthStorage();
+          setCheckingSession(false);
+          return;
+        }
+        
+        // Valid session exists, redirect to dashboard
+        if (user.email_confirmed_at) {
+          navigate(from, { replace: true });
+        } else {
+          // User not verified
+          setCheckingSession(false);
+        }
+      } catch (error) {
+        if (isMounted.current) {
+          clearAuthStorage();
+          setCheckingSession(false);
+        }
+      }
+    };
+    
+    checkExistingSession();
+    
+    return () => {
+      isMounted.current = false;
+    };
+  }, [navigate, from]);
 
   // Validation functions
   const validateEmail = (value) => {
@@ -72,7 +125,12 @@ export default function Login() {
 
       if (data.user && !data.user.email_confirmed_at) {
         toast.error("Please verify your email before signing in.");
-        await supabase.auth.signOut();
+        clearAuthStorage();
+        try {
+          await supabase.auth.signOut({ scope: 'local' });
+        } catch (e) {
+          // Ignore signout errors
+        }
         navigate(`/verify-email?email=${encodeURIComponent(email)}`, {
           state: { from },
         });
@@ -104,6 +162,21 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  // Show loading while checking for existing session
+  if (checkingSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="w-12 h-12 relative mx-auto mb-4">
+            <div className="absolute inset-0 rounded-full border-4 border-green-100"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-green-600 border-t-transparent animate-spin"></div>
+          </div>
+          <p className="text-slate-600 font-medium">Checking session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen">
