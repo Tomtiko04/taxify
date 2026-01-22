@@ -18,6 +18,7 @@ export default function PersonalTax({ userProfile, session }) {
   const [annualRent, setAnnualRent] = useState('')
   const [hasPension, setHasPension] = useState(true)
   const [hasNHF, setHasNHF] = useState(true)
+  const [nhfOnBasicOnly, setNhfOnBasicOnly] = useState(true) // 2026 compliant
   const [analysisName, setAnalysisName] = useState('')
   const [results, setResults] = useState(null)
   const [isSavingCalculation, setIsSavingCalculation] = useState(false)
@@ -40,6 +41,7 @@ export default function PersonalTax({ userProfile, session }) {
         setAnnualRent(savedData.annualRent ? formatNumberWithCommas(savedData.annualRent) : '')
         setHasPension(savedData.hasPension !== undefined ? savedData.hasPension : true)
         setHasNHF(savedData.hasNHF !== undefined ? savedData.hasNHF : true)
+        setNhfOnBasicOnly(savedData.nhfOnBasicOnly !== undefined ? savedData.nhfOnBasicOnly : true)
         setAnalysisName(savedData.analysisName || '')
         
         if (savedData.monthlyGross || savedData.isDetailed) {
@@ -57,13 +59,19 @@ export default function PersonalTax({ userProfile, session }) {
 
           const additionalTotal = (savedData.additionalIncomes || []).reduce((sum, item) => sum + parseFormattedNumber(item.amount), 0)
           const rentValue = parseFormattedNumber(savedData.annualRent)
+          
+          // NHF 2026 Compliance
+          const savedNhfOnBasicOnly = savedData.nhfOnBasicOnly !== undefined ? savedData.nhfOnBasicOnly : true
+          const nhfBase = savedData.isDetailed && savedNhfOnBasicOnly ? basicValue : monthlyValue
+          
           if (monthlyValue > 0 || additionalTotal > 0) {
             const calculation = calculatePAYE(
               monthlyValue, rentValue,
               savedData.hasPension !== undefined ? savedData.hasPension : true,
               savedData.hasNHF !== undefined ? savedData.hasNHF : true,
               additionalTotal,
-              pensionBase
+              pensionBase,
+              nhfBase
             )
             if (isMounted.current) {
               setResults(calculation)
@@ -89,6 +97,9 @@ export default function PersonalTax({ userProfile, session }) {
       ? (basicValue + housingValue + transportValue)
       : monthlyValue
 
+    // NHF 2026 Compliance: Calculate on Basic Salary (standard) or Total Gross (optional)
+    const nhfBase = isDetailed && nhfOnBasicOnly ? basicValue : monthlyValue
+
     const additionalTotal = additionalIncomes.reduce((sum, item) => sum + parseFormattedNumber(item.amount), 0)
     const rentValue = parseFormattedNumber(annualRent)
 
@@ -97,7 +108,7 @@ export default function PersonalTax({ userProfile, session }) {
       return
     }
 
-    const calculation = calculatePAYE(monthlyValue, rentValue, hasPension, hasNHF, additionalTotal, pensionBase)
+    const calculation = calculatePAYE(monthlyValue, rentValue, hasPension, hasNHF, additionalTotal, pensionBase, nhfBase)
     setResults(calculation)
     toast.success('Tax calculated!')
   }
@@ -138,7 +149,8 @@ export default function PersonalTax({ userProfile, session }) {
         additionalIncomes, 
         annualRent, 
         hasPension, 
-        hasNHF, 
+        hasNHF,
+        nhfOnBasicOnly,
         analysisName, 
         results 
       }
@@ -170,7 +182,8 @@ export default function PersonalTax({ userProfile, session }) {
             additionalIncomes,
             annualRent,
             hasPension,
-            hasNHF
+            hasNHF,
+            nhfOnBasicOnly
           }
         })
 
@@ -392,6 +405,7 @@ export default function PersonalTax({ userProfile, session }) {
     setAnnualRent('')
     setHasPension(true)
     setHasNHF(true)
+    setNhfOnBasicOnly(true)
     setAnalysisName('')
   }
 
@@ -638,11 +652,15 @@ export default function PersonalTax({ userProfile, session }) {
                         <div className="flex items-center justify-between">
                           <span className="font-medium text-slate-900 text-sm">Pension (8%)</span>
                           <div className="group relative">
-                            <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg className="w-3.5 h-3.5 text-slate-400 hover:text-green-600 transition-colors cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
-                            <div className="absolute bottom-full right-0 mb-2 w-48 p-2 bg-slate-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none">
-                              Every Naira in Pension is 100% Tax-Free.
+                            <div className="absolute bottom-full right-0 mb-2 w-56 p-3 bg-slate-900 text-white text-[11px] leading-relaxed rounded-xl opacity-0 group-hover:opacity-100 transition-all z-20 pointer-events-none shadow-2xl border border-slate-700">
+                              <div className="font-bold text-green-400 mb-1">Pension Tax Relief</div>
+                              Every Naira that goes into your Pension is 100% Tax-Free.
+                              <div className="mt-2 text-slate-400 italic text-[10px]">
+                                Tip: Check your pay slip to see if pension is based on Basic or Total Salary.
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -663,11 +681,63 @@ export default function PersonalTax({ userProfile, session }) {
                       }`}>
                         {hasNHF && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                       </div>
-                      <div>
-                        <span className="font-medium text-slate-900 text-sm">NHF (2.5%)</span>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-slate-900 text-sm">NHF (2.5%)</span>
+                          <div className="group relative">
+                            <svg className="w-3.5 h-3.5 text-slate-400 hover:text-green-600 transition-colors cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <div className="absolute bottom-full right-0 mb-2 w-56 p-3 bg-slate-900 text-white text-[11px] leading-relaxed rounded-xl opacity-0 group-hover:opacity-100 transition-all z-20 pointer-events-none shadow-2xl border border-slate-700">
+                              <div className="font-bold text-green-400 mb-1">NHF Tax Relief (2026)</div>
+                              2.5% contribution to National Housing Fund. Optional for private sector.
+                              <div className="mt-2 text-slate-400 italic text-[10px]">
+                                Legal standard: 2.5% of Basic Salary. Some employers use Total Gross.
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </label>
                   </div>
+
+                  {/* NHF Calculation Base - Only show when detailed mode AND NHF enabled */}
+                  {isDetailed && hasNHF && (
+                    <div className="mt-3 p-3 bg-green-50/50 rounded-lg border border-green-100">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-slate-700">NHF Base:</span>
+                        <div className="flex bg-white rounded-md border border-slate-200 p-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setNhfOnBasicOnly(true)}
+                            className={`px-2 py-1 text-[10px] font-semibold rounded transition-all ${
+                              nhfOnBasicOnly
+                                ? "bg-green-600 text-white"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            Basic Only
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setNhfOnBasicOnly(false)}
+                            className={`px-2 py-1 text-[10px] font-semibold rounded transition-all ${
+                              !nhfOnBasicOnly
+                                ? "bg-green-600 text-white"
+                                : "text-slate-500 hover:text-slate-700"
+                            }`}
+                          >
+                            Total Gross
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-green-700 mt-1">
+                        {nhfOnBasicOnly 
+                          ? "2026 Compliant: NHF on Basic Salary" 
+                          : "NHF on Total Gross"}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Annual Rent */}
@@ -767,79 +837,116 @@ export default function PersonalTax({ userProfile, session }) {
                 </div>
 
                 <div className="p-5 space-y-4">
-                  {/* Analysis Breakdown */}
-                  <div className="space-y-4">
-                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Net Income</span>
-                        <span className="px-1.5 py-0.5 bg-green-100 text-green-700 text-[9px] font-bold rounded-full uppercase">Take-Home</span>
+                  {/* Key Metrics */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-200">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <div className="w-6 h-6 bg-green-500 rounded-md flex items-center justify-center">
+                          <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <span className="text-[10px] font-semibold text-green-700 uppercase">Annual Tax</span>
                       </div>
-                      <div className="flex items-baseline gap-1.5">
-                        <span className="text-2xl font-bold text-slate-900">{formatCurrency(results.netMonthly)}</span>
-                        <span className="text-xs text-slate-500 font-medium">/ month</span>
-                      </div>
+                      <span className="text-xl font-extrabold text-green-800">{formatCurrency(results.netTax || 0)}</span>
+                      <p className="text-[10px] text-green-600 mt-0.5">{formatCurrency(results.monthlyTax || 0)}/month</p>
                     </div>
-
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="p-3 bg-blue-50/50 rounded-lg border border-blue-100 text-center">
-                        <span className="block text-[9px] font-bold text-blue-600 uppercase mb-1">Tax Savings</span>
-                        <span className="block text-sm font-bold text-blue-700">{formatCurrency(results.totalDeductions || 0)}</span>
+                    <div className="p-3 bg-gradient-to-br from-slate-50 to-slate-100 rounded-xl border border-slate-200">
+                      <div className="flex items-center gap-1.5 mb-1.5">
+                        <div className="w-6 h-6 bg-slate-500 rounded-md flex items-center justify-center">
+                          <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                          </svg>
+                        </div>
+                        <span className="text-[10px] font-semibold text-slate-600 uppercase">Effective Rate</span>
                       </div>
-                      <div className="p-3 bg-rose-50/50 rounded-lg border border-rose-100 text-center">
-                        <span className="block text-[9px] font-bold text-rose-600 uppercase mb-1">Monthly Tax</span>
-                        <span className="block text-sm font-bold text-rose-700">{formatCurrency(results.monthlyTax || 0)}</span>
-                      </div>
-                      <div className="p-3 bg-emerald-50/50 rounded-lg border border-emerald-100 text-center">
-                        <span className="block text-[9px] font-bold text-emerald-600 uppercase mb-1">Net Rate</span>
-                        <span className="block text-sm font-bold text-emerald-700">{(results.effectiveRate || 0).toFixed(1)}%</span>
-                      </div>
+                      <span className="text-xl font-extrabold text-slate-800">{(results.effectiveRate || 0).toFixed(1)}%</span>
+                      <p className="text-[10px] text-slate-500 mt-0.5">of gross income</p>
                     </div>
                   </div>
 
+                  {/* Tax-Shielded Income */}
+                  {results.totalDeductions > 0 && (
+                    <div className="p-3 bg-gradient-to-r from-emerald-50 to-green-50 rounded-xl border border-emerald-200">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-5 h-5 bg-emerald-500 rounded flex items-center justify-center">
+                            <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                          </div>
+                          <span className="text-[10px] font-bold text-emerald-800 uppercase">Tax-Shielded Income</span>
+                        </div>
+                        <span className="text-sm font-extrabold text-emerald-700">{formatCurrency(results.totalDeductions)}</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {results.pension > 0 && (
+                          <span className="px-2 py-1 bg-white/70 rounded text-[10px] text-emerald-700 font-medium border border-emerald-100">
+                            Pension: {formatCurrency(results.pension)}
+                          </span>
+                        )}
+                        {results.nhf > 0 && (
+                          <span className="px-2 py-1 bg-white/70 rounded text-[10px] text-emerald-700 font-medium border border-emerald-100">
+                            NHF: {formatCurrency(results.nhf)}
+                          </span>
+                        )}
+                        {results.rentRelief > 0 && (
+                          <span className="px-2 py-1 bg-white/70 rounded text-[10px] text-emerald-700 font-medium border border-emerald-100">
+                            Rent (20%): {formatCurrency(results.rentRelief)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Detailed Table */}
-                  <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-sm">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="w-7 h-7 bg-slate-100 rounded-lg flex items-center justify-center">
-                        <svg className="w-3.5 h-3.5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="p-3 bg-white border border-slate-200 rounded-xl shadow-sm">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <div className="w-6 h-6 bg-slate-100 rounded flex items-center justify-center">
+                        <svg className="w-3 h-3 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                         </svg>
                       </div>
-                      <h4 className="text-xs font-semibold text-slate-900">Detailed Breakdown</h4>
+                      <h4 className="text-[11px] font-semibold text-slate-900">Breakdown</h4>
                     </div>
                     
-                    <div className="space-y-2 text-xs">
-                      <div className="flex justify-between items-center py-2 px-2.5 bg-slate-50 rounded-lg">
+                    <div className="space-y-1.5 text-[11px]">
+                      <div className="flex justify-between items-center py-1.5 px-2 bg-slate-50 rounded">
                         <span className="text-slate-600">Gross (Annual)</span>
                         <span className="font-bold text-slate-900">{formatCurrency(results.annualGross)}</span>
                       </div>
                       
                       {results.pension > 0 && (
-                        <div className="flex justify-between items-center py-1.5 px-2">
+                        <div className="flex justify-between items-center py-1 px-2">
                           <span className="text-slate-500 flex items-center">
-                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-2"></div>
+                            <div className="w-1.5 h-1.5 rounded-full bg-blue-500 mr-1.5"></div>
                             Pension (8%)
                           </span>
                           <span className="font-semibold text-slate-700">-{formatCurrency(results.pension)}</span>
                         </div>
                       )}
                       {results.nhf > 0 && (
-                        <div className="flex justify-between items-center py-1.5 px-2">
+                        <div className="flex justify-between items-center py-1 px-2">
                           <span className="text-slate-500 flex items-center">
-                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mr-2"></div>
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 mr-1.5"></div>
                             NHF (2.5%)
                           </span>
                           <span className="font-semibold text-slate-700">-{formatCurrency(results.nhf)}</span>
                         </div>
                       )}
+                      {results.rentRelief > 0 && (
+                        <div className="flex justify-between items-center py-1 px-2">
+                          <span className="text-slate-500 flex items-center">
+                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500 mr-1.5"></div>
+                            Rent Relief (20%)
+                          </span>
+                          <span className="font-semibold text-slate-700">-{formatCurrency(results.rentRelief)}</span>
+                        </div>
+                      )}
                       
-                      <div className="flex justify-between items-center py-2 px-2.5 bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg border border-slate-200">
+                      <div className="flex justify-between items-center py-1.5 px-2 bg-slate-50 rounded border border-slate-200">
                         <span className="text-slate-700 font-medium">Taxable Income</span>
                         <span className="font-bold text-slate-900">{formatCurrency(results.taxableIncome)}</span>
-                      </div>
-                      
-                      <div className="flex justify-between items-center py-2.5 px-2.5 bg-gradient-to-r from-slate-50 to-slate-100 rounded-lg border border-slate-200">
-                        <span className="text-slate-700 font-bold">Annual Tax</span>
-                        <span className="font-extrabold text-slate-900">{formatCurrency(results.netTax)}</span>
                       </div>
                     </div>
                   </div>
