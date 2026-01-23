@@ -115,7 +115,7 @@ export default function ChatbotSignup({ onComplete }) {
               </svg>
             </div>
             <div>
-              <h3 className="font-semibold">Taxify Assistant</h3>
+              <h3 className="font-semibold">TaxBuddy Assistant</h3>
               <p className="text-sm text-green-100">Let's get you set up</p>
             </div>
           </div>

@@ -200,7 +200,7 @@ const floatAnimation = {
       image:
         "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face",
       quote:
-        "Taxify made understanding my PAYE so much easier. I finally know exactly where my deductions go!",
+        "TaxBuddy made understanding my PAYE so much easier. I finally know exactly where my deductions go!",
     },
     {
       name: "Chidinma Eze",
@@ -208,7 +208,7 @@ const floatAnimation = {
       image:
         "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=face",
       quote:
-        "As a small business owner, calculating CIT was always confusing. Taxify simplified everything for me.",
+        "As a small business owner, calculating CIT was always confusing. TaxBuddy simplified everything for me.",
     },
     {
       name: "Emeka Nwosu",
@@ -216,7 +216,7 @@ const floatAnimation = {
       image:
         "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face",
       quote:
-        "I use Taxify to explain tax deductions to our employees. It's become an essential HR tool.",
+        "I use TaxBuddy to explain tax deductions to our employees. It's become an essential HR tool.",
     },
   ];
 
@@ -278,7 +278,7 @@ export default function Landing({ session, userProfile }) {
                 variants={fadeInUp}
                 className="mb-8 text-xl leading-relaxed text-slate-300"
               >
-                Calculate your PAYE or Corporate Income Tax in seconds.
+                Don't sweat the math, let your Buddy do it.
                 Accurate, transparent, and built for the new Nigeria Tax Act
                 2025.
               </motion.p>
@@ -526,7 +526,7 @@ export default function Landing({ session, userProfile }) {
             variants={fadeInUp}
           >
             <span className="text-sm font-semibold tracking-wider text-green-600 uppercase">
-              Why Choose Taxify
+              Why Choose TaxBuddy
             </span>
             <h2 className="mt-4 text-4xl font-bold md:text-5xl text-slate-900">
               Everything You Need for
@@ -636,7 +636,7 @@ export default function Landing({ session, userProfile }) {
               Simple Process
             </span>
             <h2 className="mt-4 text-4xl font-bold md:text-5xl text-slate-900">
-              How Taxify Works
+              How TaxBuddy Works
             </h2>
             <p className="max-w-2xl mx-auto mt-4 text-xl text-slate-600">
               Get your tax calculation in three simple steps.
@@ -978,7 +978,7 @@ export default function Landing({ session, userProfile }) {
                     userProfile?.company_name ||
                     "User"
                   }! Continue with your tax calculations below.`
-                : "Join thousands of Nigerians who trust Taxify for accurate tax calculations. Start for free today."}
+                : "Join thousands of Nigerians who trust TaxBuddy for accurate tax calculations. Start for free today."}
             </motion.p>
             <motion.div
               variants={fadeInUp}
@@ -1052,21 +1052,11 @@ export default function Landing({ session, userProfile }) {
             <div className="md:col-span-2">
               <div className="flex items-center mb-4">
                 <div className="flex items-center justify-center w-10 h-10 mr-3 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500">
-                  <svg
-                    className="w-6 h-6 text-white"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                    />
+                  <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656-.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
                 </div>
-                <span className="text-xl font-bold text-white">Taxify</span>
+                <span className="text-xl font-bold text-white">TaxBuddy</span>
               </div>
               <p className="max-w-sm text-slate-400">
                 Nigeria's trusted tax calculator. Built on the Tax Act 2025 to
@@ -1135,7 +1125,7 @@ export default function Landing({ session, userProfile }) {
           </div>
           <div className="pt-8 mt-12 text-center border-t border-slate-800">
             <p>
-              &copy; {new Date().getFullYear()} Taxify. All rights reserved.
+              &copy; {new Date().getFullYear()} TaxBuddy. All rights reserved.
               Built for Nigeria.
             </p>
           </div>

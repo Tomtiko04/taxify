@@ -74,9 +74,11 @@ export default function Navbar({ session, userProfile }) {
           <div className="flex items-center">
             <Link to="/" className="flex items-center space-x-2 group">
               <div className={`w-10 h-10 ${isScrolled || !isLandingPage ? 'bg-gradient-to-br from-green-500 to-emerald-600' : 'bg-white/20 backdrop-blur-sm border border-white/30'} rounded-lg flex items-center justify-center transition-all duration-300 group-hover:scale-105`}>
-                <span className={`font-bold text-xl ${isScrolled || !isLandingPage ? 'text-white' : 'text-white'}`}>₦</span>
+                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656-.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
               </div>
-              <span className={`text-xl font-bold ${logoTextColor} transition-colors duration-300`}>Taxify</span>
+              <span className={`text-xl font-bold ${logoTextColor} transition-colors duration-300`}>TaxBuddy</span>
             </Link>
           </div>
           

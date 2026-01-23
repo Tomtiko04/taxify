@@ -1,6 +1,6 @@
-# Nigeria Tax Support Portal
+# TaxBuddy - Nigeria Tax Support Portal
 
-A comprehensive tax calculation and support portal for Nigerian individuals and businesses based on the new Tax Act 2025 (effective Jan 2026).
+A comprehensive tax calculation and support portal for Nigerian individuals and businesses based on the new Tax Act 2025 (effective Jan 2026). Powered by TaxBuddy.
 
 ## Features
 

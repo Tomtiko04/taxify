@@ -3,9 +3,9 @@
  */
 
 const STORAGE_KEYS = {
-  PERSONAL_CALC: 'taxify_personal_calc',
-  BUSINESS_CALC: 'taxify_business_calc',
-  RETURN_URL: 'taxify_return_url'
+  PERSONAL_CALC: 'taxbuddy_personal_calc',
+  BUSINESS_CALC: 'taxbuddy_business_calc',
+  RETURN_URL: 'taxbuddy_return_url'
 }
 
 /**

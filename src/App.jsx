@@ -156,7 +156,7 @@ function App() {
       <div className="flex items-center justify-center min-h-screen bg-white">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600 font-medium">Loading Taxify...</p>
+          <p className="text-slate-600 font-medium">Loading TaxBuddy...</p>
         </div>
       </div>
     );

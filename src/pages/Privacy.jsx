@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 const sections = [
   {
     title: "1. Introduction",
-    content: `Taxify ("we," "our," or "us") is committed to protecting your privacy and personal data in compliance with the Nigeria Data Protection Regulation (NDPR) 2019 and other applicable data protection laws.
+    content: `TaxBuddy ("we," "our," or "us") is committed to protecting your privacy and personal data in compliance with the Nigeria Data Protection Regulation (NDPR) 2019 and other applicable data protection laws.
 
 This Privacy Policy explains how we collect, use, store, and protect your personal information when you use our tax calculation services. By using our Service, you consent to the practices described in this policy.`,
   },
@@ -85,7 +85,7 @@ When your data is no longer needed, we will securely delete or anonymize it. You
 • Right to Object: Object to processing based on legitimate interests
 • Right to Withdraw Consent: Withdraw consent at any time
 
-To exercise these rights, contact us at privacy@taxify.ng. We will respond within 30 days.`,
+To exercise these rights, contact us at privacy@taxbuddy.ng. We will respond within 30 days.`,
   },
   {
     title: "8. Cookies and Tracking",
@@ -141,7 +141,7 @@ Continued use of the Service after changes constitutes acceptance of the updated
     title: "13. Contact Us",
     content: `For questions, concerns, or to exercise your data rights, contact our Data Protection Officer:
 
-Email: privacy@taxify.ng
+Email: privacy@taxbuddy.ng
 Address: Lagos, Nigeria
 
 You may also lodge a complaint with the National Information Technology Development Agency (NITDA) if you believe your data protection rights have been violated.
@@ -163,9 +163,11 @@ export default function Privacy() {
           >
             <Link to="/" className="inline-flex items-center mb-6 space-x-2">
               <div className="flex items-center justify-center w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl">
-                <span className="text-xl font-bold text-white">₦</span>
+                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656-.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
               </div>
-              <span className="text-xl font-bold">Taxify</span>
+              <span className="text-xl font-bold">TaxBuddy</span>
             </Link>
             <h1 className="mb-4 text-4xl font-bold">Privacy Policy</h1>
             <p className="text-green-100">

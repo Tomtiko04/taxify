@@ -4,13 +4,13 @@ import { motion } from "framer-motion";
 const sections = [
   {
     title: "1. Acceptance of Terms",
-    content: `By accessing and using Taxify ("the Service"), you accept and agree to be bound by the terms and provisions of this agreement. If you do not agree to abide by these terms, please do not use this Service.
+    content: `By accessing and using TaxBuddy ("the Service"), you accept and agree to be bound by the terms and provisions of this agreement. If you do not agree to abide by these terms, please do not use this Service.
 
 The Service is intended for users who are at least 18 years of age. By using this Service, you represent and warrant that you meet all eligibility requirements.`,
   },
   {
     title: "2. Description of Service",
-    content: `Taxify provides tax calculation tools for Nigerian taxes, including Personal Income Tax (PAYE) and Corporate Income Tax (CIT), based on the Nigeria Tax Act 2025 and other applicable tax laws.
+    content: `TaxBuddy provides tax calculation tools for Nigerian taxes, including Personal Income Tax (PAYE) and Corporate Income Tax (CIT), based on the Nigeria Tax Act 2025 and other applicable tax laws.
 
 The Service is provided for informational and educational purposes only. While we strive for accuracy, the calculations provided should not be considered as professional tax advice.`,
   },
@@ -40,7 +40,7 @@ We reserve the right to suspend or terminate accounts that violate these terms o
   },
   {
     title: "5. Intellectual Property",
-    content: `All content, features, and functionality of the Service, including but not limited to text, graphics, logos, and software, are the exclusive property of Taxify and are protected by Nigerian and international copyright, trademark, and other intellectual property laws.
+    content: `All content, features, and functionality of the Service, including but not limited to text, graphics, logos, and software, are the exclusive property of TaxBuddy and are protected by Nigerian and international copyright, trademark, and other intellectual property laws.
 
 You may not reproduce, distribute, modify, or create derivative works from any content without our express written permission.`,
   },
@@ -57,7 +57,7 @@ Tax calculations are estimates based on the information you provide. We do not g
   },
   {
     title: "7. Limitation of Liability",
-    content: `TO THE MAXIMUM EXTENT PERMITTED BY LAW, TAXIFY SHALL NOT BE LIABLE FOR:
+    content: `TO THE MAXIMUM EXTENT PERMITTED BY LAW, TAXBUDDY SHALL NOT BE LIABLE FOR:
 
 • Any indirect, incidental, special, consequential, or punitive damages
 • Loss of profits, data, or goodwill
@@ -68,7 +68,7 @@ Our total liability shall not exceed the amount you paid for the Service in the 
   },
   {
     title: "8. Indemnification",
-    content: `You agree to indemnify, defend, and hold harmless Taxify, its officers, directors, employees, and agents from any claims, damages, losses, liabilities, and expenses (including legal fees) arising from:
+    content: `You agree to indemnify, defend, and hold harmless TaxBuddy, its officers, directors, employees, and agents from any claims, damages, losses, liabilities, and expenses (including legal fees) arising from:
 
 • Your use of the Service
 • Your violation of these Terms
@@ -77,9 +77,9 @@ Our total liability shall not exceed the amount you paid for the Service in the 
   },
   {
     title: "9. Third-Party Services",
-    content: `The Service may contain links to third-party websites or services that are not owned or controlled by Taxify. We have no control over, and assume no responsibility for, the content, privacy policies, or practices of any third-party services.
+    content: `The Service may contain links to third-party websites or services that are not owned or controlled by TaxBuddy. We have no control over, and assume no responsibility for, the content, privacy policies, or practices of any third-party services.
 
-You acknowledge and agree that Taxify shall not be responsible for any damage or loss caused by your use of any third-party services.`,
+You acknowledge and agree that TaxBuddy shall not be responsible for any damage or loss caused by your use of any third-party services.`,
   },
   {
     title: "10. Modifications to Service",
@@ -99,7 +99,7 @@ Any disputes arising from these Terms or your use of the Service shall be resolv
     title: "13. Contact Information",
     content: `If you have any questions about these Terms of Service, please contact us at:
 
-Email: legal@taxify.ng
+Email: legal@taxbuddy.ng
 Address: Lagos, Nigeria
 
 Last updated: January 2026`,
@@ -119,9 +119,11 @@ export default function Terms() {
           >
             <Link to="/" className="inline-flex items-center mb-6 space-x-2">
               <div className="flex items-center justify-center w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl">
-                <span className="text-xl font-bold text-white">₦</span>
+                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656-.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
               </div>
-              <span className="text-xl font-bold">Taxify</span>
+              <span className="text-xl font-bold">TaxBuddy</span>
             </Link>
             <h1 className="mb-4 text-4xl font-bold">Terms of Service</h1>
             <p className="text-slate-300">
