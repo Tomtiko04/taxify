@@ -6,10 +6,12 @@ import toast from 'react-hot-toast'
 import { formatNumberWithCommas, parseFormattedNumber } from '../utils/taxCalculations'
 
 // InputField component - defined outside to prevent recreation
-const InputField = memo(function InputField({ name, label, type = 'text', placeholder, value, onChange, onBlur, error, touched }) {
+const InputField = memo(function InputField({ name, label, type = 'text', placeholder, value, onChange, onBlur, error, touched, required = true }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1.5">{label}</label>
+      <label className="block text-sm font-medium text-slate-700 mb-1.5">
+        {label} {required && <span className="text-red-500">*</span>}
+      </label>
       <input
         name={name}
         type={type === 'number' ? 'text' : type}
@@ -457,7 +459,9 @@ export default function Signup() {
                   ) : (
                     <>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-1.5">Business Type</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                          Business Type <span className="text-red-500">*</span>
+                        </label>
                         <select
                           name="businessType"
                           value={formData.businessType}
@@ -509,7 +513,9 @@ export default function Signup() {
 
                   {/* Password */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Password <span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
                       <input
                         name="password"
@@ -544,7 +550,9 @@ export default function Signup() {
 
                   {/* Confirm Password */}
                   <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1.5">Confirm Password</label>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                      Confirm Password <span className="text-red-500">*</span>
+                    </label>
                     <input
                       name="confirmPassword"
                       type="password"
