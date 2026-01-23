@@ -15,7 +15,7 @@ export default function History({ userProfile }) {
   const [exporting, setExporting] = useState(null)
 
   useEffect(() => {
-    let isMounted = true
+    const isMounted = { current: true }
     
     const fetchData = async () => {
       if (!userProfile?.id) return
@@ -29,17 +29,17 @@ export default function History({ userProfile }) {
           .order('created_at', { ascending: false })
 
         if (error) throw error
-        if (isMounted) setCalculations(data || [])
+        if (isMounted.current) setCalculations(data || [])
       } catch (error) {
         console.error('Error fetching calculations:', error)
         toast.error('Failed to load saved analyses')
       } finally {
-        if (isMounted) setLoading(false)
+        if (isMounted.current) setLoading(false)
       }
     }
 
     fetchData()
-    return () => { isMounted = false }
+    return () => { isMounted.current = false }
   }, [userProfile])
 
   const handleDelete = async (id) => {

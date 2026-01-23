@@ -25,7 +25,7 @@ export default function Overview({ userProfile }) {
 
         if (statsError) throw statsError
 
-        if (isMounted) {
+        if (isMounted.current) {
           setRecentCalculations(allCalcs.slice(0, 5) || [])
 
           // Calculate stats
@@ -49,16 +49,16 @@ export default function Overview({ userProfile }) {
       } catch (error) {
         console.error('Error fetching dashboard data:', error)
       } finally {
-        if (isMounted) {
+        if (isMounted.current) {
           setLoading(false)
         }
       }
     }
 
     // Add isMounted tracking
-    let isMounted = true
+    const isMounted = { current: true }
     fetchData()
-    return () => { isMounted = false }
+    return () => { isMounted.current = false }
   }, [userProfile])
 
   const formatDate = (dateString) => {

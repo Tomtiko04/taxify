@@ -30,7 +30,7 @@ export default function BusinessTax({ userProfile, session }) {
 
   useEffect(() => {
     isMounted.current = true
-    return () => { isMounted = false }
+    return () => { isMounted.current = false }
   }, [])
 
   // Restore calculation data after signup/login
