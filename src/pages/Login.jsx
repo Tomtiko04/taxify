@@ -53,7 +53,7 @@ export default function Login({ session }) {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/dashboard` },
+        options: { redirectTo: `${import.meta.env.VITE_SITE_URL?.replace(/\/$/, '') || window.location.origin}/dashboard` },
       });
       if (error) throw error;
     } catch (error) {

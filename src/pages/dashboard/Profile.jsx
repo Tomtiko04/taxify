@@ -71,7 +71,7 @@ export default function Profile({ userProfile, onProfileUpdate }) {
       const { error } = await supabase.auth.resetPasswordForEmail(
         userProfile.email,
         {
-          redirectTo: `${import.meta.env.VITE_SITE_URL || window.location.origin}/reset-password`,
+          redirectTo: `${import.meta.env.VITE_SITE_URL?.replace(/\/$/, '') || window.location.origin}/reset-password`,
         }
       );
 

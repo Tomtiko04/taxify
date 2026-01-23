@@ -160,7 +160,7 @@ export default function Signup() {
         email,
         password: formData.password,
         options: {
-          emailRedirectTo: `${import.meta.env.VITE_SITE_URL || window.location.origin}/verify-email`,
+          emailRedirectTo: `${import.meta.env.VITE_SITE_URL?.replace(/\/$/, '') || window.location.origin}/verify-email`,
           data: {
             user_type: userType,
             full_name: formData.fullName,
