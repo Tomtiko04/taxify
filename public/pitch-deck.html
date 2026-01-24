@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TaxBuddy Pitch Deck</title>
+    <style>
+      :root {
+        --green-600: #16a34a;
+        --green-700: #15803d;
+        --green-50: #f0fdf4;
+        --slate-900: #0f172a;
+        --slate-700: #334155;
+        --slate-500: #64748b;
+        --slate-200: #e2e8f0;
+        --white: #ffffff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+        color: var(--slate-900);
+        background: var(--white);
+      }
+
+      @page {
+        size: 11in 8.5in;
+        margin: 0;
+      }
+
+      .slide {
+        width: 11in;
+        height: 8.5in;
+        padding: 56px 72px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        page-break-after: always;
+        background: var(--white);
+      }
+
+      .slide:last-child {
+        page-break-after: auto;
+      }
+
+      .eyebrow {
+        text-transform: uppercase;
+        font-size: 12px;
+        letter-spacing: 0.18em;
+        color: var(--green-700);
+        font-weight: 700;
+      }
+
+      h1 {
+        font-size: 48px;
+        margin: 12px 0 0;
+      }
+
+      h2 {
+        font-size: 32px;
+        margin: 0 0 12px;
+      }
+
+      p {
+        font-size: 18px;
+        line-height: 1.5;
+        color: var(--slate-700);
+        margin: 0;
+      }
+
+      .footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 14px;
+        color: var(--slate-500);
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: var(--green-50);
+        color: var(--green-700);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .two-column {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+      }
+
+      .card {
+        border: 1px solid var(--slate-200);
+        border-radius: 16px;
+        padding: 20px;
+        background: var(--white);
+      }
+
+      ul {
+        padding-left: 18px;
+        margin: 0;
+        color: var(--slate-700);
+        line-height: 1.6;
+        font-size: 17px;
+      }
+
+      .hero {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .hero .title {
+        max-width: 640px;
+      }
+
+      .hero .subtitle {
+        font-size: 20px;
+      }
+
+      .highlight {
+        color: var(--green-700);
+        font-weight: 600;
+      }
+
+      .metric-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+      }
+
+      .metric {
+        border-radius: 14px;
+        padding: 16px;
+        background: var(--green-50);
+        border: 1px solid #dcfce7;
+      }
+
+      .metric span {
+        display: block;
+        font-size: 14px;
+        color: var(--green-700);
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-weight: 700;
+      }
+
+      .metric strong {
+        font-size: 22px;
+        color: var(--slate-900);
+      }
+
+      .cta {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        align-items: flex-start;
+      }
+
+      .cta .button {
+        background: var(--green-600);
+        color: var(--white);
+        padding: 12px 20px;
+        border-radius: 12px;
+        font-weight: 600;
+        font-size: 16px;
+      }
+
+      .logo {
+        font-weight: 700;
+        font-size: 20px;
+        color: var(--slate-900);
+      }
+
+      .logo span {
+        color: var(--green-700);
+      }
+    </style>
+  </head>
+  <body>
+    <section class="slide">
+      <div class="hero">
+        <div class="eyebrow">Pitch Deck</div>
+        <div class="title">
+          <h1>TaxBuddy</h1>
+          <p class="subtitle">Nigeria tax support portal delivering instant, compliant calculations for individuals and businesses.</p>
+        </div>
+        <div class="badge">Aligned with Nigeria Tax Act 2025 (effective Jan 2026)</div>
+      </div>
+      <div class="footer">
+        <div class="logo">Tax<span>Buddy</span></div>
+        <div>Confidential • 2025</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div>
+        <div class="eyebrow">Problem</div>
+        <h2>Tax compliance is complex, time-consuming, and intimidating.</h2>
+        <p>Individuals and SMEs struggle to interpret the latest tax reforms, estimate liabilities, and keep records in a trusted way.</p>
+      </div>
+      <div class="two-column">
+        <div class="card">
+          <h3>For individuals</h3>
+          <ul>
+            <li>Confusing PAYE rules and allowances.</li>
+            <li>Manual calculations lead to errors.</li>
+            <li>Limited clarity on deductions and exemptions.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>For businesses</h3>
+          <ul>
+            <li>Corporate income tax decisions require accurate data.</li>
+            <li>New tax thresholds demand quick classification.</li>
+            <li>Reporting needs structured, exportable outputs.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer">
+        <div class="logo">Tax<span>Buddy</span></div>
+        <div>Problem Statement</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div>
+        <div class="eyebrow">Solution</div>
+        <h2>TaxBuddy provides a modern, guided tax experience.</h2>
+        <p>We combine instant calculators, document-aware workflows, and trustworthy guidance to help users understand their tax obligations with confidence.</p>
+      </div>
+      <div class="metric-grid">
+        <div class="metric">
+          <span>Value-first</span>
+          <strong>Calculations without signup</strong>
+        </div>
+        <div class="metric">
+          <span>Accuracy</span>
+          <strong>2025 Tax Act compliant</strong>
+        </div>
+        <div class="metric">
+          <span>Trust</span>
+          <strong>Secure Supabase authentication</strong>
+        </div>
+      </div>
+      <div class="footer">
+        <div class="logo">Tax<span>Buddy</span></div>
+        <div>Solution Overview</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div>
+        <div class="eyebrow">Product</div>
+        <h2>Core capabilities built for everyday tax needs.</h2>
+      </div>
+      <div class="two-column">
+        <div class="card">
+          <h3>Personal Income Tax (PAYE)</h3>
+          <ul>
+            <li>Tax-free threshold and progressive tax bands.</li>
+            <li>Deductions for pension, NHF, and rent relief.</li>
+            <li>Save calculations for future reference.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Corporate Income Tax (CIT)</h3>
+          <ul>
+            <li>Automatic classification by turnover and assets.</li>
+            <li>AI-assisted document upload for faster entry.</li>
+            <li>Clear breakdowns for compliance teams.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Supporting tools</h3>
+        <ul>
+          <li>FAQ hub to debunk common tax myths.</li>
+          <li>Secure signup + login with Google OAuth options.</li>
+          <li>Future-ready workflows for reports and certificates.</li>
+        </ul>
+      </div>
+      <div class="footer">
+        <div class="logo">Tax<span>Buddy</span></div>
+        <div>Product Highlights</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div>
+        <div class="eyebrow">Experience</div>
+        <h2>Designed for clarity, trust, and speed.</h2>
+        <p>TaxBuddy’s UI uses a professional Nigerian green palette, clean cards, and guided flows to keep users oriented.</p>
+      </div>
+      <div class="two-column">
+        <div class="card">
+          <h3>Value-first onboarding</h3>
+          <ul>
+            <li>Users start calculating immediately.</li>
+            <li>Signup only when saving results or reports.</li>
+            <li>Progressive disclosure keeps the flow simple.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Trust cues</h3>
+          <ul>
+            <li>Secure authentication with Supabase.</li>
+            <li>Clear success feedback and data validation.</li>
+            <li>Professional visual design and accessibility.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer">
+        <div class="logo">Tax<span>Buddy</span></div>
+        <div>User Experience</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div>
+        <div class="eyebrow">Technology</div>
+        <h2>Modern stack engineered for reliability.</h2>
+      </div>
+      <div class="two-column">
+        <div class="card">
+          <h3>Frontend</h3>
+          <ul>
+            <li>React + Vite for fast interactive experiences.</li>
+            <li>Tailwind CSS for consistent design system styling.</li>
+            <li>Responsive layouts for mobile and desktop.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Backend</h3>
+          <ul>
+            <li>Supabase authentication and secure sessions.</li>
+            <li>Serverless functions for document analysis.</li>
+            <li>Scalable storage for saved calculations.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer">
+        <div class="logo">Tax<span>Buddy</span></div>
+        <div>Technology</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div>
+        <div class="eyebrow">Roadmap</div>
+        <h2>Growth-ready features on deck.</h2>
+      </div>
+      <div class="two-column">
+        <div class="card">
+          <h3>Near-term</h3>
+          <ul>
+            <li>Saved calculations database table.</li>
+            <li>PDF report generation for official records.</li>
+            <li>12-month tax forecasting for users.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Mid-term</h3>
+          <ul>
+            <li>FIRS/JTB data integrations.</li>
+            <li>Tax clearance certificate generation.</li>
+            <li>Identity verification (NIN/RC numbers).</li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer">
+        <div class="logo">Tax<span>Buddy</span></div>
+        <div>Roadmap</div>
+      </div>
+    </section>
+
+    <section class="slide">
+      <div>
+        <div class="eyebrow">Call to Action</div>
+        <h2>Let’s help more Nigerians stay tax-compliant.</h2>
+      </div>
+      <div class="cta">
+        <p>We are ready to pilot with forward-thinking businesses, institutions, and partners who want to simplify compliance for their customers.</p>
+        <div class="button">Schedule a product walkthrough</div>
+      </div>
+      <div class="footer">
+        <div class="logo">Tax<span>Buddy</span></div>
+        <div>Contact: hello@taxbuddy.app</div>
+      </div>
+    </section>
+  </body>
+</html>
