@@ -17,6 +17,7 @@ import FAQ from "./pages/FAQ";
 import VerifyEmail from "./pages/VerifyEmail";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import PitchDeck from "./pages/PitchDeck";
 import Navbar from "./components/Navbar";
 import ChatbotSignup from "./components/ChatbotSignup";
 import ScrollToTop from "./components/ScrollToTop";
@@ -180,6 +181,7 @@ function App() {
         <Route path="/faq" element={<><Navbar session={session} userProfile={userProfile} /><FAQ /><ScrollToTop /></>} />
         <Route path="/privacy" element={<><Navbar session={session} userProfile={userProfile} /><Privacy /><ScrollToTop /></>} />
         <Route path="/terms" element={<><Navbar session={session} userProfile={userProfile} /><Terms /><ScrollToTop /></>} />
+        <Route path="/pitch-deck" element={<><Navbar session={session} userProfile={userProfile} /><PitchDeck /><ScrollToTop /></>} />
         <Route
           path="/personal-calculator"
           element={
