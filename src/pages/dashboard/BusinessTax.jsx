@@ -74,10 +74,46 @@ export default function BusinessTax({ userProfile, session }) {
   }, [userProfile])
 
   const documentTypes = [
-    { id: 'auditedStatement', name: 'Audited Financial Statement', required: true, icon: '📋' },
-    { id: 'assetRegister', name: 'Fixed Asset Register', required: false, icon: '🏭' },
-    { id: 'trialBalance', name: 'Trial Balance', required: false, icon: '⚖️' },
-    { id: 'whtNotes', name: 'WHT Credit Notes', required: false, icon: '🎟️' }
+    { 
+      id: 'auditedStatement', 
+      name: 'Audited Financial Statement', 
+      required: true,
+      icon: (
+        <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+      )
+    },
+    { 
+      id: 'assetRegister', 
+      name: 'Fixed Asset Register', 
+      required: false,
+      icon: (
+        <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+        </svg>
+      )
+    },
+    { 
+      id: 'trialBalance', 
+      name: 'Trial Balance', 
+      required: false,
+      icon: (
+        <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6l4 2M9 20h6a2 2 0 002-2v-1a4 4 0 00-4-4H11a4 4 0 00-4 4v1a2 2 0 002 2zM12 3a3 3 0 00-3 3v1a3 3 0 006 0V6a3 3 0 00-3-3z" />
+        </svg>
+      )
+    },
+    { 
+      id: 'whtNotes', 
+      name: 'WHT Credit Notes', 
+      required: false,
+      icon: (
+        <svg className="w-5 h-5 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V6m0 12v-2m8-4a8 8 0 11-16 0 8 8 0 0116 0z" />
+        </svg>
+      )
+    }
   ]
 
   useEffect(() => {
@@ -313,61 +349,71 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
   // Mode Selection
   if (mode === null) {
     return (
-      <div className="max-w-4xl mx-auto space-y-8">
-        <div>
+      <div className="max-w-5xl mx-auto space-y-8">
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-semibold text-green-600 uppercase tracking-wide">Business tax</span>
           <h1 className="text-2xl font-bold text-slate-900">Corporate Income Tax Calculator</h1>
-          <p className="text-slate-600 mt-1">Calculate your CIT based on Nigeria Tax Act 2025</p>
+          <p className="text-slate-600">Calculate your CIT based on Nigeria Tax Act 2025.</p>
         </div>
 
-        <div className="text-center py-4">
-          <h2 className="text-xl font-semibold text-slate-800 mb-2">How would you like to proceed?</h2>
-          <p className="text-slate-600">Choose the method that works best for you</p>
+        <div className="card text-center space-y-2">
+          <h2 className="text-xl font-semibold text-slate-800">Choose your workflow</h2>
+          <p className="text-slate-600 text-sm">Pick the method that matches how you manage your financial data.</p>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
           <button
             onClick={() => setMode('ai')}
-            className="group p-8 bg-white rounded-xl border-2 border-slate-200 hover:border-green-500 hover:shadow-lg transition-all text-left"
+            className="group card text-left hover:border-green-500 hover:shadow-xl transition-all"
           >
-            <div className="w-14 h-14 bg-gradient-to-br from-green-400 to-green-600 rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-              <span className="text-2xl">✨</span>
+            <div className="w-12 h-12 bg-green-50 border border-green-200 rounded-xl flex items-center justify-center mb-5 group-hover:bg-green-100">
+              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1-2.5L5 17l2.5-1L9 13l.75 4zm7.5-9.5L17 11l-1-2.5L13 7.5l2.5-1L17 4l.25 3.5zM7 8l1.5 4L5 11l2-3z" />
+              </svg>
             </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-2">AI-Powered Analysis</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">AI-powered analysis</h3>
             <p className="text-slate-600 text-sm mb-4">
-              Upload your Audited Financial Statements and let AI extract the data.
+              Upload audited statements and let AI extract the key figures.
             </p>
             <div className="flex items-center text-green-600 font-medium text-sm group-hover:translate-x-1 transition-transform">
-              Upload Documents →
+              Upload documents
+              <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
             </div>
           </button>
 
           <button
             onClick={() => setMode('manual')}
-            className="group p-8 bg-white rounded-xl border-2 border-slate-200 hover:border-blue-500 hover:shadow-lg transition-all text-left"
+            className="group card text-left hover:border-blue-500 hover:shadow-xl transition-all"
           >
-            <div className="w-14 h-14 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center mb-5 group-hover:scale-110 transition-transform">
-              <span className="text-2xl">✏️</span>
+            <div className="w-12 h-12 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-center mb-5 group-hover:bg-blue-100">
+              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 11l8-8 3 3-8 8H9v-3zM4 20h16" />
+              </svg>
             </div>
-            <h3 className="text-lg font-bold text-slate-900 mb-2">Manual Entry</h3>
+            <h3 className="text-lg font-semibold text-slate-900 mb-2">Manual entry</h3>
             <p className="text-slate-600 text-sm mb-4">
-              Enter your financial data directly. Quick and straightforward.
+              Enter financial data yourself for a quick tax estimate.
             </p>
             <div className="flex items-center text-blue-600 font-medium text-sm group-hover:translate-x-1 transition-transform">
-              Enter Data Manually →
+              Enter data manually
+              <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
             </div>
           </button>
         </div>
 
-        {/* Quick Reference */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6">
-          <h3 className="font-semibold text-slate-900 mb-4">2026 Corporate Tax Rules</h3>
+        <div className="card space-y-4">
+          <h3 className="font-semibold text-slate-900">2026 Corporate Tax Rules</h3>
           <div className="grid md:grid-cols-2 gap-4">
-            <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-r-lg">
+            <div className="bg-green-50 border border-green-100 p-4 rounded-xl">
               <h4 className="font-semibold text-green-900">Small Business</h4>
               <p className="text-xs text-green-700 mt-1">Turnover ≤ ₦100M AND Assets ≤ ₦250M</p>
               <p className="text-sm text-green-800 font-bold mt-2">0% CIT • 0% Dev Levy</p>
             </div>
-            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-lg">
+            <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl">
               <h4 className="font-semibold text-blue-900">Large Business</h4>
               <p className="text-xs text-blue-700 mt-1">Turnover &gt; ₦100M OR Assets &gt; ₦250M</p>
               <p className="text-sm text-blue-800 font-bold mt-2">30% CIT • 4% Dev Levy</p>
@@ -392,10 +438,19 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
           </svg>
           Back
         </button>
-        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+        <span className={`px-3 py-1 rounded-full text-sm font-medium inline-flex items-center gap-2 ${
           mode === 'ai' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'
         }`}>
-          {mode === 'ai' ? '✨ AI Mode' : '✏️ Manual Mode'}
+          {mode === 'ai' ? (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1-2.5L5 17l2.5-1L9 13l.75 4zm7.5-9.5L17 11l-1-2.5L13 7.5l2.5-1L17 4l.25 3.5zM7 8l1.5 4L5 11l2-3z" />
+            </svg>
+          ) : (
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 11l8-8 3 3-8 8H9v-3zM4 20h16" />
+            </svg>
+          )}
+          {mode === 'ai' ? 'AI Mode' : 'Manual Mode'}
         </span>
       </div>
 
@@ -410,9 +465,14 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
         {/* Left Column */}
         <div className="space-y-6">
           {mode === 'ai' && (
-            <div className="bg-white rounded-xl border-2 border-dashed border-green-300 p-6">
-              <h2 className="font-semibold text-slate-900 mb-4 flex items-center">
-                <span className="mr-2">📄</span> Upload Documents
+            <div className="card border-dashed border-green-300">
+              <h2 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                <span className="w-9 h-9 rounded-lg bg-green-50 border border-green-200 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M12 12V4m0 8l-3-3m3 3l3-3" />
+                  </svg>
+                </span>
+                Upload Documents
               </h2>
               
               <div className="space-y-3">
@@ -431,7 +491,7 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
                         : 'bg-white border-slate-200 hover:border-green-400'
                     }`}>
                       <div className="flex items-center">
-                        <span className="text-lg mr-3">{doc.icon}</span>
+                        <span className="mr-3">{doc.icon}</span>
                         <div>
                           <span className="text-sm font-medium truncate block max-w-[180px]">
                             {uploadedFiles[doc.id] ? uploadedFiles[doc.id].name : doc.name}
@@ -454,10 +514,10 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
               <button
                 onClick={runAiAnalysis}
                 disabled={isAnalyzing || !uploadedFiles.auditedStatement}
-                className={`w-full mt-5 py-3 rounded-lg font-bold flex items-center justify-center transition-all ${
+                className={`w-full mt-5 py-3 rounded-lg font-semibold flex items-center justify-center transition-all ${
                   isAnalyzing || !uploadedFiles.auditedStatement
                     ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                    : 'bg-green-600 text-white hover:bg-green-700'
+                    : 'bg-green-600 text-white hover:bg-green-700 shadow-md hover:shadow-lg'
                 }`}
               >
                 {isAnalyzing ? (
@@ -466,14 +526,19 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
                     Processing... {uploadProgress}%
                   </>
                 ) : (
-                  '🚀 Extract Data with AI'
+                  <>
+                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Extract Data with AI
+                  </>
                 )}
               </button>
             </div>
           )}
 
           {/* Form */}
-          <div className="bg-white rounded-xl border border-slate-200 p-6">
+          <div className="card">
             <h2 className="font-semibold text-slate-900 mb-5">
               {mode === 'ai' ? 'Review & Edit Data' : 'Enter Financial Details'}
             </h2>
@@ -545,8 +610,8 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
         </div>
 
         {/* Right Column - Results */}
-        <div className="bg-white rounded-xl border border-slate-200 p-6 h-fit sticky top-8">
-          <h2 className="font-semibold text-slate-900 mb-5">Tax Breakdown</h2>
+          <div className="card h-fit sticky top-8">
+            <h2 className="font-semibold text-slate-900 mb-5">Tax Breakdown</h2>
 
           {results ? (
             <div className="space-y-5">
@@ -613,16 +678,26 @@ Based on Nigeria Tax Act 2025 (effective Jan 2026)
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="w-full bg-green-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center"
+                  className="w-full bg-green-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {saving ? 'Saving...' : '💾 Save Analysis'}
+                  {saving ? 'Saving...' : (
+                    <>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Save Analysis
+                    </>
+                  )}
                 </button>
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     onClick={handleDownload}
-                    className="bg-slate-100 text-slate-700 px-4 py-2.5 rounded-lg font-medium hover:bg-slate-200 transition-colors flex items-center justify-center text-sm"
+                    className="bg-slate-100 text-slate-700 px-4 py-2.5 rounded-lg font-medium hover:bg-slate-200 transition-colors flex items-center justify-center text-sm gap-2"
                   >
-                    📥 Download
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M12 12V4m0 8l-3-3m3 3l3-3" />
+                    </svg>
+                    Download
                   </button>
                   <button
                     onClick={() => { setResults(null); setMode(null) }}
